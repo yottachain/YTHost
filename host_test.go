@@ -4,19 +4,16 @@ import (
 	"context"
 	ra "crypto/rand"
 	"fmt"
-	host "github.com/graydream/YTHost"
-	. "github.com/graydream/YTHost/hostInterface"
-	"github.com/graydream/YTHost/option"
-	"github.com/graydream/YTHost/service"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/multiformats/go-multiaddr"
 	"math/rand"
-	"net"
-
-	//"net"
-	"sync"
 	"testing"
 	"time"
+
+	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/multiformats/go-multiaddr"
+	host "github.com/yottachain/YTHost"
+	. "github.com/yottachain/YTHost/hostInterface"
+	"github.com/yottachain/YTHost/option"
+	"github.com/yottachain/YTHost/service"
 )
 
 // 测试创建通讯节点
@@ -60,6 +57,7 @@ func GetRandomLocalMutlAddr() multiaddr.Multiaddr {
 func GetRandomHost() Host {
 	return GetHost(GetRandomLocalMutlAddr())
 }
+
 func GetHost(ma multiaddr.Multiaddr) Host {
 	hst, err := host.NewHost(option.ListenAddr(ma))
 	if err != nil {
@@ -292,70 +290,6 @@ func TestCS(t *testing.T) {
 	} else {
 		t.Log(err)
 	}
-}
-
-func TestStressConn(t *testing.T) {
-	h1 := GetRandomHost()
-	h2 := GetRandomHost()
-
-	h1.RegisterHandler(0x11, func(requestData []byte, head service.Head) ([]byte, error) {
-		fmt.Println(string(requestData))
-		return nil, nil
-	})
-
-	var max = 100000
-
-	go h1.Accept()
-
-	wg := sync.WaitGroup{}
-	wg.Add(max)
-
-	for i := 0; i < max; i++ {
-		go func(i int) {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			_, err := h2.ClientStore().Get(ctx, h1.Config().ID, h1.Addrs())
-			//defer h2.ClientStore().Close(h1.Config().ID)
-			if err != nil {
-				fmt.Println(err)
-			}
-			h2.SendMsg(ctx, h1.Config().ID, 0x11, []byte(fmt.Sprintf("消息 %d", i)))
-			defer wg.Done()
-		}(i)
-	}
-	tm := time.Now()
-	wg.Wait()
-	t.Log("用时", time.Now().Sub(tm).Seconds())
-}
-
-func TestStressConn3(t *testing.T) {
-	const max = 4000
-	var number = 0
-	l, _ := net.Listen("tcp4", "127.0.0.1:9003")
-	wg := sync.WaitGroup{}
-	wg.Add(max)
-
-	go func() {
-		for {
-			number++
-			fmt.Println("accept", time.Now().String())
-			l.Accept()
-			fmt.Println("end", time.Now().String(), number)
-		}
-	}()
-
-	for i := 0; i < max; i++ {
-		go func() {
-			t.Log("start conn")
-			net.Dial("tcp4", "127.0.0.1:9003")
-			t.Log("end conn")
-			defer wg.Done()
-		}()
-	}
-
-	tm := time.Now()
-	wg.Wait()
-	t.Log("用时", time.Now().Sub(tm).Seconds())
 }
 
 func TestDnsMa(t *testing.T) {

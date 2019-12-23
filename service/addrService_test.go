@@ -2,10 +2,10 @@ package service_test
 
 import (
 	"crypto/rand"
-	ythost "github.com/graydream/YTHost"
-	"github.com/graydream/YTHost/service"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	ythost "github.com/yottachain/YTHost"
+	"github.com/yottachain/YTHost/service"
 	"testing"
 )
 

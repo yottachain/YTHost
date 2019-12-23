@@ -3,16 +3,16 @@ package host
 import (
 	"context"
 	"fmt"
-	"github.com/graydream/YTHost/client"
-	"github.com/graydream/YTHost/clientStore"
-	"github.com/graydream/YTHost/config"
-	"github.com/graydream/YTHost/option"
-	"github.com/graydream/YTHost/peerInfo"
-	"github.com/graydream/YTHost/service"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
 	mnet "github.com/multiformats/go-multiaddr-net"
+	"github.com/yottachain/YTHost/client"
+	"github.com/yottachain/YTHost/clientStore"
+	"github.com/yottachain/YTHost/config"
+	"github.com/yottachain/YTHost/option"
+	"github.com/yottachain/YTHost/peerInfo"
+	"github.com/yottachain/YTHost/service"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -82,6 +82,7 @@ func (hst *host) Accept() {
 
 	msgService := new(service.MsgService)
 	msgService.Handler = hst.HandlerMap
+	msgService.LocalPriKey = hst.cfg.Privkey
 	msgService.Pi = peerInfo.PeerInfo{hst.cfg.ID, hst.Addrs()}
 
 	if err := hst.srv.RegisterName("as", addrService); err != nil {
@@ -148,11 +149,15 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		return nil, err
 	}
 
+	err = conn.SetDeadline(time.Now().Add(time.Second * 60))
+	if err != nil {
+		return nil, err
+	}
 	clt := rpc.NewClient(conn)
 	ytclt, err := client.WarpClient(clt, &peer.AddrInfo{
 		hst.cfg.ID,
 		hst.Addrs(),
-	}, hst.cfg.Privkey.GetPublic())
+	}, hst.cfg.Privkey.GetPublic(), conn)
 	if err != nil {
 		return nil, err
 	}

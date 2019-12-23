@@ -1,10 +1,10 @@
 package clientStore_test
 
 import (
-	host "github.com/graydream/YTHost"
-	"github.com/graydream/YTHost/option"
-	"github.com/graydream/YTHost/service"
 	"github.com/multiformats/go-multiaddr"
+	host "github.com/yottachain/YTHost"
+	"github.com/yottachain/YTHost/option"
+	"github.com/yottachain/YTHost/service"
 	"golang.org/x/net/context"
 	"testing"
 	"time"
@@ -61,7 +61,7 @@ func TestClientStore(t *testing.T) {
 	for k, m := range maddrs {
 		addrs[k] = m.String()
 	}
-	_, err = hst1.ClientStore().GetByAddrString(ctx,  hst.Config().ID.String(), addrs)
+	_, err = hst1.ClientStore().GetByAddrString(ctx, hst.Config().ID.String(), addrs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestClientStore(t *testing.T) {
 	}
 
 	//再通过地址字符串连接一下
-	_, err = hst1.ClientStore().GetByAddrString(ctx,  hst.Config().ID.String(), addrs)
+	_, err = hst1.ClientStore().GetByAddrString(ctx, hst.Config().ID.String(), addrs)
 	if err != nil {
 		t.Fatal(err)
 	}
