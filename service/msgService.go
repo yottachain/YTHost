@@ -2,9 +2,9 @@ package service
 
 import (
 	"fmt"
-	"github.com/graydream/YTHost/peerInfo"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/yottachain/YTHost/peerInfo"
 )
 
 type MsgId int32

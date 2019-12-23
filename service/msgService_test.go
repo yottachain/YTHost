@@ -1,17 +1,16 @@
 package service_test
 
 import (
-	host "github.com/graydream/YTHost"
-	"github.com/graydream/YTHost/option"
-	"github.com/graydream/YTHost/service"
 	"github.com/multiformats/go-multiaddr"
+	host "github.com/yottachain/YTHost"
+	"github.com/yottachain/YTHost/option"
+	"github.com/yottachain/YTHost/service"
 	"golang.org/x/net/context"
 	"testing"
 	"time"
 )
 
-
-func TestMsg(t *testing.T){
+func TestMsg(t *testing.T) {
 	ma, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/9009")
 	if err != nil {
 		t.Log(err.Error())
