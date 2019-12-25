@@ -149,10 +149,6 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		return nil, err
 	}
 
-	err = conn.SetDeadline(time.Now().Add(time.Second * 60))
-	if err != nil {
-		return nil, err
-	}
 	clt := rpc.NewClient(conn)
 	ytclt, err := client.WarpClient(clt, &peer.AddrInfo{
 		hst.cfg.ID,
