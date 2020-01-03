@@ -4,9 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"net"
-	"time"
-
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/mr-tron/base58"
@@ -15,6 +12,7 @@ import (
 	"github.com/yottachain/YTHost/encrypt"
 	"github.com/yottachain/YTHost/service"
 	"golang.org/x/crypto/ripemd160"
+	"net"
 
 	"net/rpc"
 )
@@ -137,9 +135,6 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, conn net.C
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
-	if err := yc.conn.SetDeadline(time.Now().Add(time.Second * 60)); err != nil {
-		return nil, err
-	}
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
