@@ -379,6 +379,80 @@ func TestMutlConnCrypt(t *testing.T) {
 	}*/
 }
 
+func TestMutlConnCrypt1(t *testing.T) {
+	mastr := fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 9000)
+
+	ma, _ := multiaddr.NewMultiaddr(mastr)
+	hst, err := host.NewHost(option.ListenAddr(ma))
+	if err != nil {
+		panic(err)
+	}
+
+	var count int64 = 0
+
+	hst.RegisterGlobalMsgHandler(func(requestData []byte, head service.Head) (bytes []byte, e error) {
+		count = count + 1
+		fmt.Println(fmt.Sprintf("msg num is %d, msg is [%s]", count, string(requestData)))
+		return []byte("receice----------------------succeed!"), nil
+	})
+
+	go hst.Accept()
+
+
+	port := 19000
+	mastr = fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port)
+
+	ma, _ = multiaddr.NewMultiaddr(mastr)
+	hst1, err := host.NewHost(option.ListenAddr(ma))
+	go hst1.Accept()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	conn, err := hst1.Connect(ctx, hst.Config().ID, hst.Addrs())
+	if err != nil {
+		t.Log(err.Error())
+	}
+
+	ctx_local, cancel_local := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel_local()
+
+	key, _, _ := ic.GenerateSecp256k1Key(ra.Reader)
+	keyByte, _ := key.Raw()
+	msgstr := base58.Encode(keyByte)
+
+	//fmt.Println(keystr)		//发送的消息
+
+	ret, err := (conn).SendMsg(ctx_local, 0x0, []byte(msgstr))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("conn send succeed, msg is [%s]\n", msgstr)
+		fmt.Println(string(ret))
+	}
+
+	time.Sleep(time.Second*1)
+
+	//conn.Close()
+
+	/*conn, err = hst1.Connect(ctx, hst.Config().ID, hst.Addrs())
+	if err != nil {
+		t.Log(err.Error())
+	}*/
+
+	ret, err = (conn).SendMsg(ctx_local, 0x0, []byte(msgstr))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("conn send succeed, msg is [%s]\n", msgstr)
+		fmt.Println(string(ret))
+	}
+
+	/*for {
+		time.Sleep(time.Second*1)
+	}*/
+}
+
 ////测试多连接
 //func TestMutlConn(t *testing.T) {
 //	mastr := fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 9000)
