@@ -82,7 +82,11 @@ func (ms *MsgService) Ping(req string, res *string) error {
 }
 
 func (ms *MsgService) RegisterMsgPriKey(clinetMsgKey IdToMsgPriKey, res *bool) error {
-	hostPriKey, _ := ms.LocalPriKey.Raw()
+	hostPriKey, err := ms.LocalPriKey.Raw()
+	if err != nil {
+		*res = false
+		return err
+	}
 
 	peerId := clinetMsgKey.ID
 	msgPriKey := clinetMsgKey.MsgPriKey
@@ -149,9 +153,13 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 
 	if ok {
 		if resdata, err := h(reqData, head); err != nil {
-			return nil
+			return err
 		} else {
-			data.Data = resdata
+			aesData, err := encrypt.AesCBCEncrypt(resdata, msgKey)
+			if err != nil {
+				return fmt.Errorf("respones AesCBCEncrypt msg error %x", err)
+			}
+			data.Data = aesData
 			return nil
 		}
 	} else {

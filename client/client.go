@@ -4,9 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"net"
-	"time"
-
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/mr-tron/base58"
@@ -15,6 +12,7 @@ import (
 	"github.com/yottachain/YTHost/encrypt"
 	"github.com/yottachain/YTHost/service"
 	"golang.org/x/crypto/ripemd160"
+	"net"
 
 	"net/rpc"
 )
@@ -45,14 +43,18 @@ func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
 	return ai
 }
 
-func (yc *YTHostClient) RemotePeerPubkey() crypto.PubKey {
+func (yc *YTHostClient) RemotePeerPubkey() (crypto.PubKey, error) {
 	var pi service.PeerInfo
-
+	var pk crypto.PubKey
 	if err := yc.Call("as.RemotePeerInfo", "", &pi); err != nil {
 		fmt.Println(err)
+		return pk, err
 	}
-	pk, _ := crypto.UnmarshalPublicKey(pi.PubKey)
-	return pk
+	pk, err := crypto.UnmarshalPublicKey(pi.PubKey)
+	if err != nil {
+		return pk, fmt.Errorf("get remote pubkey fail\n")
+	}
+	return pk, nil
 }
 
 func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
@@ -66,17 +68,25 @@ func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
 }
 
 func (yc *YTHostClient) SendMsgPriKey() error {
-	pk, _ := yc.RemotePeerPubkey().Raw()
+	pk, err := yc.RemotePeerPubkey()
+	if err != nil {
+		return err
+	}
+
+	pkbyte, err := pk.Raw()
+	if err != nil {
+		return err
+	}
 	msgkey := yc.msgPriKey
 
 	//fmt.Printf("client gen prikey is %s\n", base58.Encode(msgkey))
 
 	hasher := ripemd160.New()
-	hasher.Write(pk)
+	hasher.Write(pkbyte)
 	sum := hasher.Sum(nil)
-	pk = append(pk, sum[0:4]...)
+	pkbyte = append(pkbyte, sum[0:4]...)
 
-	pkstr := base58.Encode(pk)
+	pkstr := base58.Encode(pkbyte)
 
 	//fmt.Printf("peer publickey is %s\n", pkstr)
 
@@ -125,9 +135,6 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, conn net.C
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
-	if err := yc.conn.SetDeadline(time.Now().Add(time.Second * 60)); err != nil {
-		return nil, err
-	}
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
@@ -165,7 +172,11 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	case <-ctx.Done():
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
-		return rd.Data, nil
+		rpsData, err := encrypt.AesCBCDncrypt(rd.Data, aesKey)
+		if err != nil {
+			err =  fmt.Errorf("respones AesCBCDncrypt msg error %x", err)
+		}
+		return rpsData, nil
 	case err := <-errChan:
 		return nil, err
 	}

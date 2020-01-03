@@ -4,6 +4,8 @@ import (
 	"context"
 	ra "crypto/rand"
 	"fmt"
+	"github.com/mr-tron/base58"
+	"github.com/yottachain/YTHost/client"
 	"math/rand"
 	"testing"
 	"time"
@@ -111,15 +113,11 @@ func TestConnSendPeerInfo(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	clt, err := hst2.Connect(ctx, hst.Config().ID, hst.Addrs())
+	_, err := hst2.Connect(ctx, hst.Config().ID, hst.Addrs())
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	peerInfo := clt.RemotePeer()
-
-	// 打印节点信息
-	t.Log(peerInfo.ID.Pretty(), peerInfo.Addrs, clt.RemotePeerPubkey())
 }
 
 // 发送，处理消息
@@ -299,6 +297,160 @@ func TestDnsMa(t *testing.T) {
 	} else {
 		t.Log(ma)
 	}
+}
+
+func TestMutlConnCrypt(t *testing.T) {
+	mastr := fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 9000)
+
+	ma, _ := multiaddr.NewMultiaddr(mastr)
+	hst, err := host.NewHost(option.ListenAddr(ma))
+	if err != nil {
+		panic(err)
+	}
+
+	var count int64 = 0
+
+	hst.RegisterGlobalMsgHandler(func(requestData []byte, head service.Head) (bytes []byte, e error) {
+		count = count + 1
+		fmt.Println(fmt.Sprintf("msg num is %d, msg is [%s]", count, string(requestData)))
+		return []byte("receice----------------------succeed!"), nil
+	})
+
+	go hst.Accept()
+
+	lenth := 50
+	hstcSilce := make([]Host, lenth)
+	connSilce := make([]*client.YTHostClient, lenth)
+
+	for i := 0; i < lenth; i++ {
+		j := i
+		port := 19000 + j + 1
+		mastr := fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port)
+
+		ma, _ := multiaddr.NewMultiaddr(mastr)
+		hstcSilce[j], err = host.NewHost(option.ListenAddr(ma))
+		go hstcSilce[j].Accept()
+		if err != nil {
+			hstcSilce[j] = nil
+			continue
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		/*mastr = "/ip4/127.0.0.1/tcp/9000/p2p/" + hst.Config().ID.String() + "/p2p-circuit/"
+		maddrs := make([]multiaddr.Multiaddr, 1)
+		maddrs[0], err = multiaddr.NewMultiaddr(mastr)
+		connSilce[j], err = hstcSilce[j].Connect(ctx, hst.Config().ID, maddrs)*/
+
+		connSilce[j], err = hstcSilce[j].Connect(ctx, hst.Config().ID, hst.Addrs())
+		if err != nil {
+			t.Log(err.Error())
+			continue
+		}else{
+			//fmt.Println(connSilce[j].LocalPeer())
+		}
+	}
+
+	for index, conn := range connSilce {
+		if nil != conn {
+			ctx_local, cancel_local := context.WithTimeout(context.Background(), time.Second*10)
+			defer cancel_local()
+
+			key, _, _ := ic.GenerateSecp256k1Key(ra.Reader)
+			keyByte, _ := key.Raw()
+			msgstr := base58.Encode(keyByte)
+
+			//fmt.Println(keystr)		//发送的消息
+
+			ret, err := (conn).SendMsg(ctx_local, 0x0, []byte(msgstr))
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Printf("conn[%d] send succeed, msg is [%s]\n", index, msgstr)
+				fmt.Println(string(ret))
+			}
+
+			time.Sleep(time.Second*5)
+		}
+	}
+
+	/*for {
+		time.Sleep(time.Second*1)
+	}*/
+}
+
+func TestMutlConnCrypt1(t *testing.T) {
+	mastr := fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 9000)
+
+	ma, _ := multiaddr.NewMultiaddr(mastr)
+	hst, err := host.NewHost(option.ListenAddr(ma))
+	if err != nil {
+		panic(err)
+	}
+
+	var count int64 = 0
+
+	hst.RegisterGlobalMsgHandler(func(requestData []byte, head service.Head) (bytes []byte, e error) {
+		count = count + 1
+		fmt.Println(fmt.Sprintf("msg num is %d, msg is [%s]", count, string(requestData)))
+		return []byte("receice----------------------succeed!"), nil
+	})
+
+	go hst.Accept()
+
+
+	port := 19000
+	mastr = fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port)
+
+	ma, _ = multiaddr.NewMultiaddr(mastr)
+	hst1, err := host.NewHost(option.ListenAddr(ma))
+	go hst1.Accept()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	conn, err := hst1.Connect(ctx, hst.Config().ID, hst.Addrs())
+	if err != nil {
+		t.Log(err.Error())
+	}
+
+	ctx_local, cancel_local := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel_local()
+
+	key, _, _ := ic.GenerateSecp256k1Key(ra.Reader)
+	keyByte, _ := key.Raw()
+	msgstr := base58.Encode(keyByte)
+
+	//fmt.Println(keystr)		//发送的消息
+
+	ret, err := (conn).SendMsg(ctx_local, 0x0, []byte(msgstr))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("conn send succeed, msg is [%s]\n", msgstr)
+		fmt.Println(string(ret))
+	}
+
+	time.Sleep(time.Second*1)
+
+	//conn.Close()
+
+	/*conn, err = hst1.Connect(ctx, hst.Config().ID, hst.Addrs())
+	if err != nil {
+		t.Log(err.Error())
+	}*/
+
+	ret, err = (conn).SendMsg(ctx_local, 0x0, []byte(msgstr))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("conn send succeed, msg is [%s]\n", msgstr)
+		fmt.Println(string(ret))
+	}
+
+	/*for {
+		time.Sleep(time.Second*1)
+	}*/
 }
 
 ////测试多连接
