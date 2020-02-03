@@ -334,7 +334,7 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		}
 
 		select {
-		case errChan <- fmt.Errorf("dail all maddr fail"):
+		case errChan <- fmt.Errorf("relay dail all maddr fail"):
 		case <-time.After(time.Millisecond * 500):
 			return
 		}
@@ -376,7 +376,7 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx quit")
+			return nil, fmt.Errorf("relay ctx quit")
 		case conn := <-connChan:
 			conned <- true
 			return conn, nil

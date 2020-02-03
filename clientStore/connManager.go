@@ -127,9 +127,18 @@ func (cs *ClientStore) StoreConnInfo(pid peer.ID, clt ci.YTHClient) () {
 	cs.l.Lock()
 	defer cs.l.Unlock()
 	pids, ok := cs.connTopid[clt]
+	exist := 0
 
 	if ok {
-		cs.connTopid[clt] = append(pids, pid)
+		for _, c_pid := range pids {
+			if pid == c_pid {
+				exist = 1
+				break
+			}
+		}
+		if exist == 0 {
+			cs.connTopid[clt] = append(pids, pid)
+		}
 	}else {
 		pids = make([]peer.ID, 1)
 		pids[0] = pid

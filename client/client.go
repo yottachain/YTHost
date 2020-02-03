@@ -186,7 +186,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, pid peer.ID, id int32, data
 
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("ctx time out")
+		return nil, fmt.Errorf("relay ctx time out")
 	case rd := <-resChan:
 		rpsData, err := encrypt.AesCBCDncrypt(rd.Data, aesKey)
 		if err != nil {
