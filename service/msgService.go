@@ -3,18 +3,53 @@ package service
 import (
 	"context"
 	"fmt"
-	ci "github.com/yottachain/YTHost/clientInterface"
-	"github.com/yottachain/YTHost/clientStore"
-	"github.com/yottachain/YTHost/encrypt"
-	"github.com/yottachain/YTHost/peerInfo"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTCrypto"
+	ci "github.com/yottachain/YTHost/clientInterface"
+	"github.com/yottachain/YTHost/clientStore"
+	"github.com/yottachain/YTHost/encrypt"
+	"github.com/yottachain/YTHost/peerInfo"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
 	"sync"
 	"time"
 )
+
+var (
+	Trace   *log.Logger // 记录所有日志
+	Info    *log.Logger // 重要的信息
+	Warning *log.Logger // 需要注意的信息
+	Error   *log.Logger // 非常严重的问题
+)
+
+func init() {
+	file, err := os.OpenFile("errors.txt",
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalln("Failed to open error log file:", err)
+	}
+
+	Trace = log.New(ioutil.Discard,
+		"TRACE: ",
+		log.Ldate|log.Ltime|log.Lshortfile)
+
+	Info = log.New(os.Stdout,
+		"INFO: ",
+		log.Ldate|log.Ltime|log.Lshortfile)
+
+	Warning = log.New(os.Stdout,
+		"WARNING: ",
+		log.Ldate|log.Ltime|log.Lshortfile)
+
+	Error = log.New(io.MultiWriter(file, os.Stderr),
+		"ERROR: ",
+		log.Ldate|log.Ltime|log.Lshortfile)
+}
 
 type MsgId int32
 
@@ -118,6 +153,7 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 	ms.msgPriMapinit()
 
 	if ms.Handler == nil {
+		Error.Printf("no handler %d\n", req.MsgId)
 		return fmt.Errorf("no handler %x", req.MsgId)
 	}
 
@@ -140,7 +176,8 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 	//解密消息
 	_k, ok := ms.msgPriMap.Load(head.RemotePeerID)
 	if !ok {
-		return fmt.Errorf("no msgPriKey %x", head.RemotePeerID)
+		Error.Printf("no msgPriKey %s\n", head.RemotePeerID.String())
+		return fmt.Errorf("no msgPriKey %s", head.RemotePeerID.String())
 	}
 	msgKey := _k.([]byte)
 
@@ -148,6 +185,7 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 
 	reqData, err := encrypt.AesCBCDncrypt(req.ReqData, msgKey)
 	if err != nil {
+		Error.Printf("AesCBCDncrypt msg error %s\n", head.RemotePeerID.String())
 		return fmt.Errorf("AesCBCDncrypt msg error %x", head.RemotePeerID)
 	}
 
@@ -158,33 +196,34 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 		dstr := req.DstID.String()
 		lstr := ms.LocalPeerID.String()
 		if dstr != lstr {
-			//fmt.Printf("relay ID:[%s] transpond peer Id:[%s] msg:[%s]\n",
-			//ms.LocalPeerID.String(), req.DstID.String(), string(reqData))
-			//fmt.Println("----------------with relay-------------------------------------------")
 			resdata, err := ms.transpondMsg(req.DstID, req.MsgId, reqData)
 			if nil != err {
+				Error.Printf("peerid:%s  transpondMsg ID: %s---%s\n",head.RemotePeerID.String(), ms.LocalPeerID.String(), err)
 				return err
 			}
+			//Error.Printf("peerid:%s  transpondMsg ID: %s\n", head.RemotePeerID.String(), ms.LocalPeerID.String())
 			aesData, err := encrypt.AesCBCEncrypt(resdata, msgKey)
 			if err != nil {
+				Error.Printf("peerid:%s respones AesCBCEncrypt msg error %s\n", head.RemotePeerID.String(), err)
 				return fmt.Errorf("respones AesCBCEncrypt msg error %x", err)
 			}
 			data.Data = aesData
 			return nil
 		}
 
-		//fmt.Println("no with relay-------------------------------------------")
 		if resdata, err := h(reqData, head); err != nil {
 			return nil
 		} else {
 			aesData, err := encrypt.AesCBCEncrypt(resdata, msgKey)
 			if err != nil {
+				Error.Printf("peerid:%s respones AesCBCEncrypt msg error %s\n",head.RemotePeerID.String(),  err)
 				return fmt.Errorf("respones AesCBCEncrypt msg error %x", err)
 			}
 			data.Data = aesData
 			return nil
 		}
 	} else {
+		Error.Printf("no handler %d\n", req.MsgId)
 		return fmt.Errorf("no handler %x", req.MsgId)
 	}
 }
