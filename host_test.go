@@ -1259,3 +1259,49 @@ func TestRelayTransMsg4(t *testing.T) {
 	}
 
 }
+
+func TestRelayTransMsg5(t *testing.T) {
+	mastr := fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 9000)
+	ma, _ := multiaddr.NewMultiaddr(mastr)
+	hst1, err := host.NewHost(option.ListenAddr(ma), option.OpenPProf("127.0.0.1:8888"))
+	if err != nil {
+		panic(err)
+	}
+	go hst1.Accept()
+
+	mastr = fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 9001)
+	ma, _ = multiaddr.NewMultiaddr(mastr)
+	hst2, err := host.NewHost(option.ListenAddr(ma), option.OpenPProf("127.0.0.1:8889"))
+	if err != nil {
+		panic(err)
+	}
+	go hst2.Accept()
+
+	fmt.Println(hst1.Config().ID.String())
+	fmt.Println(hst2.Config().ID.String())
+
+	hst2.RegisterGlobalMsgHandler(func(requestData []byte, head service.Head) (bytes []byte, e error) {
+		fmt.Println(fmt.Sprintf("msg is [%s]", string(requestData)))
+		return []byte("receice----hst2------hst2------hst2------succeed!"), nil
+	})
+
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*600)
+	defer cancel()
+	clt1, err := hst1.ClientStore().Get(ctx, hst2.Config().ID, hst2.Addrs())
+	if nil != err {
+		panic(err)
+	}
+	hst1.ClientStore().PrintConnInfo(clt1)
+	fmt.Println("---------------------------")
+
+	_ = hst1.ClientStore().Close(hst2.Config().ID)
+	hst1.ClientStore().PrintConnInfo(clt1)
+	fmt.Println("---------------------------")
+
+	for {
+		//time.Sleep(time.Second * 60)
+		break
+	}
+
+}

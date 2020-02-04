@@ -7,8 +7,43 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	ci "github.com/yottachain/YTHost/clientInterface"
 	"github.com/yottachain/YTHost/util"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
 	"sync"
 )
+
+var (
+	Trace   *log.Logger // 记录所有日志
+	Info    *log.Logger // 重要的信息
+	Warning *log.Logger // 需要注意的信息
+	Error   *log.Logger // 非常严重的问题
+)
+
+func init() {
+	file, err := os.OpenFile("errors.txt",
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalln("Failed to open error log file:", err)
+	}
+
+	Trace = log.New(ioutil.Discard,
+		"TRACE: ",
+		log.Ldate|log.Ltime|log.Lshortfile)
+
+	Info = log.New(os.Stdout,
+		"INFO: ",
+		log.Ldate|log.Ltime|log.Lshortfile)
+
+	Warning = log.New(os.Stdout,
+		"WARNING: ",
+		log.Ldate|log.Ltime|log.Lshortfile)
+
+	Error = log.New(io.MultiWriter(file, os.Stderr),
+		"ERROR: ",
+		log.Ldate|log.Ltime|log.Lshortfile)
+}
 
 type ClientStore struct {
 	connect func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (ci.YTHClient, error)
@@ -71,6 +106,7 @@ start:
 		c := _c.(ci.YTHClient)
 		if c.IsClosed() || !c.Ping(ctx) {
 			cs.Map.Delete(pid)
+			Error.Printf("ping fail---> peerid:%s close connect\n", pid.String())
 			cs.DelConnInfo(pid, c)
 			goto start
 		}
@@ -101,13 +137,15 @@ func (cs *ClientStore) GetByAddrString(ctx context.Context, id string, addrs []s
 
 // Close 关闭一个客户端
 func (cs *ClientStore) Close(pid peer.ID) error {
-	_clt, ok := cs.Load(pid)
+	_clt, ok := cs.Map.Load(pid)
 	if !ok {
+		Error.Printf("peerid:%s connect not exist\n", pid.String())
 		return fmt.Errorf("no find client ID is %s", pid.Pretty())
 	}
 	clt := _clt.(ci.YTHClient)
 
 	cs.Map.Delete(pid)
+	Error.Printf("peerid:%s close connect\n", pid.String())
 
 	return cs.DelConnInfo(pid, clt)
 	//return clt.Close()
@@ -132,14 +170,17 @@ func (cs *ClientStore) StoreConnInfo(pid peer.ID, clt ci.YTHClient) () {
 	if ok {
 		for _, c_pid := range pids {
 			if pid == c_pid {
+				Error.Printf("peerid:%s connect exist\n", pid.String())
 				exist = 1
 				break
 			}
 		}
 		if exist == 0 {
+			Error.Printf("peerid:%s connect append ----\n", pid.String())
 			cs.connTopid[clt] = append(pids, pid)
 		}
 	}else {
+		Error.Printf("peerid:%s connect create ======\n", pid.String())
 		pids = make([]peer.ID, 1)
 		pids[0] = pid
 		cs.connTopid[clt] = pids
@@ -160,8 +201,11 @@ func (cs *ClientStore) DelConnInfo(pid peer.ID, clt ci.YTHClient) error {
 			}
 		}
 
+		Error.Printf("enter  peerid:%s close succeed\n", pid.String())
+
 		if len(pids) == 0 {
 			delete(cs.connTopid, clt)
+			Error.Printf("peerid:%s close succeed\n", pid.String())
 			return clt.Close()
 		}else {
 			return nil
