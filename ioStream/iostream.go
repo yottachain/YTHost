@@ -96,9 +96,13 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 				continue
 			}
 			if f == RES {
+				Error.Printf("request flag is:%s", string(f))
 				_ = sconn.ReadAppend(msg)
+				Error.Println("request msg end")
 			}else if f == RPS {
+				Error.Printf("response flag is:%s", string(f))
 				_ = cconn.ReadAppend(msg)
+				Error.Println("response msg end")
 			}else {
 				continue
 			}
@@ -293,8 +297,8 @@ func (b * Reader) ReadAppend(p [] byte) (err error){
 			return
 		}else {
 			p = p[n:]
-			b.l.Unlock()
-			b.rc <- true
+			//b.l.Unlock()
+			//b.rc <- true
 		}
 	}
 }
