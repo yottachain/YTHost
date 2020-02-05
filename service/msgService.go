@@ -64,7 +64,8 @@ type Request struct {
 }
 
 type Response struct {
-	Data []byte
+	Data       []byte
+	ReturnTime time.Time
 }
 
 func (ms *MsgService) Ping(req string, res *string) error {
@@ -103,6 +104,7 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 			return nil
 		} else {
 			data.Data = resdata
+			data.ReturnTime = time.Now()
 			return nil
 		}
 	} else {
