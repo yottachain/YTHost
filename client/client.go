@@ -103,6 +103,40 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	}
 }
 
+func (yc *YTHostClient) SendMsg2(ctx context.Context, id int32, data []byte) (*service.Response, error) {
+
+	resChan := make(chan service.Response)
+	errChan := make(chan error)
+
+	defer func() {
+		if err := recover(); err != nil {
+			errChan <- err.(error)
+		}
+	}()
+
+	go func() {
+		var res service.Response
+
+		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey}
+
+		sendTime := time.Now()
+		if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi, sendTime}, &res); err != nil {
+			errChan <- err
+		} else {
+			resChan <- res
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("ctx time out")
+	case rd := <-resChan:
+		return &rd, nil
+	case err := <-errChan:
+		return nil, err
+	}
+}
+
 func (yc *YTHostClient) Ping(ctx context.Context) bool {
 
 	successChan := make(chan struct{})

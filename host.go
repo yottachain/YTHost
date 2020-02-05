@@ -230,5 +230,6 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 	if !ok {
 		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
 	}
-	return clt.SendMsg(ctx, mid, msg)
+	res, err := clt.SendMsg2(ctx, mid, msg)
+	return res.Data, err
 }
