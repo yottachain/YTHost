@@ -8,6 +8,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/service"
 	"net/rpc"
+	"time"
 )
 
 type YTHostClient struct {
@@ -84,7 +85,8 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey}
 
-		if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res); err != nil {
+		sendTime := time.Now()
+		if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi, sendTime}, &res); err != nil {
 			errChan <- err
 		} else {
 			resChan <- res

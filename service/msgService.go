@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
+	log "github.com/yottachain/YTDataNode/logger"
 	"github.com/yottachain/YTHost/peerInfo"
+	"time"
 )
 
 type MsgId int32
@@ -58,6 +60,7 @@ type Request struct {
 	MsgId          int32
 	ReqData        []byte
 	RemotePeerInfo PeerInfo
+	SendTime       time.Time
 }
 
 type Response struct {
@@ -70,6 +73,10 @@ func (ms *MsgService) Ping(req string, res *string) error {
 }
 
 func (ms *MsgService) HandleMsg(req Request, data *Response) error {
+	startTime := time.Now()
+	defer func() {
+		log.Printf("[request] msgID %X sendTime %d ms peerID %s handleTime %d ms\n addrs %v\n", req.MsgId, time.Now().Sub(req.SendTime).Milliseconds(), req.RemotePeerInfo.ID, time.Now().Sub(startTime).Milliseconds(), req.RemotePeerInfo.Addrs)
+	}()
 
 	if ms.Handler == nil {
 		return fmt.Errorf("no handler %x", req.MsgId)
