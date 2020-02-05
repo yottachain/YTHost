@@ -1300,7 +1300,7 @@ func TestRelayTransMsg5(t *testing.T) {
 	fmt.Println("---------------------------")
 
 	for {
-		//time.Sleep(time.Second * 60)
+		time.Sleep(time.Second * 10)
 		break
 	}
 
