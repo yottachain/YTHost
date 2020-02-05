@@ -30,7 +30,7 @@ func init() {
 		"TRACE: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
 
-	Info = log.New(os.Stdout,
+	Info = log.New(file,
 		"INFO: ",
 		log.Ldate|log.Ltime|log.Lshortfile)
 
@@ -124,9 +124,9 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 			if n > 0 {
 				l.Lock()
 				_, err = buf.Write(msg[0:n+6])
-				if nil == err {
+				//if nil == err {
 					_ = buf.Flush()
-				}
+				//}
 				l.Unlock()
 			}
 		}
@@ -297,8 +297,8 @@ func (b * Reader) ReadAppend(p [] byte) (err error){
 			return
 		}else {
 			p = p[n:]
-			//b.l.Unlock()
-			//b.rc <- true
+			b.l.Unlock()
+			b.rc <- true
 		}
 	}
 }
@@ -399,14 +399,14 @@ type Closer struct {
 func (c * Closer) Close() error{
 	c.isClose = true
 	Error.Println("iostream close begin")
-	if c.isCloseRwc == true {
-		c.isCloseRwc = false
-		Error.Println("iostream closed")
+	//if c.isCloseRwc == true {
+	//	c.isCloseRwc = false
+	//	Error.Println("iostream closed")
 		return c.rwc.Close()
-	}else {
-		Error.Println("iostream close fail")
-		return nil
-	}
+	//}else {
+	//	Error.Println("iostream close fail")
+	//	return nil
+	//}
 }
 
 func (c * Closer) GetClose() bool {
