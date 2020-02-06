@@ -216,7 +216,8 @@ func (cs *ClientStore) DelConnInfo(pid peer.ID, clt ci.YTHClient) error {
 			return nil
 		}
 	}else {
-		return fmt.Errorf("peer id matching clt error!")
+		//return fmt.Errorf("peer id matching clt error!")
+		return nil
 	}
 }
 

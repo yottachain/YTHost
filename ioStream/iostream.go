@@ -82,8 +82,8 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 
 			if err != nil  {
 				if err == io.EOF {
-					_ = sconn.Close()
-					_ = cconn.Close()
+					//_ = sconn.Close()
+					//_ = cconn.Close()
 				}
 				continue
 			}
@@ -311,6 +311,7 @@ func (b *Writer) Available() int { return len(b.buf) - b.n }
 func (b *Writer) Buffered() int { return b.n }
 
 func (b *Writer) Write(p []byte) (nn int, err error) {
+	nn = 0
 	for  {
 		b.l.Lock()
 		if len(p) > b.Available() {
