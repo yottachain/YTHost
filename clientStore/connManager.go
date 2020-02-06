@@ -105,9 +105,13 @@ start:
 		// 如果已存在clt无法ping通,删除记录重新创建
 		c := _c.(ci.YTHClient)
 		if c.IsClosed() || !c.Ping(ctx) {
-			cs.Map.Delete(pid)
-			Error.Printf("ping fail---> peerid:%s close connect\n", pid.String())
-			cs.DelConnInfo(pid, c)
+			err := cs.DelConnInfo(pid, c)
+			if err == nil {
+				Error.Printf("ping fail--->peerid:%s close connect succeed\n", pid.String())
+				cs.Map.Delete(pid)
+			}else {
+				Error.Printf("ping fail--->peerid:%s close connect error:%s\n", pid.String(), err)
+			}
 			goto start
 		}
 
@@ -144,11 +148,14 @@ func (cs *ClientStore) Close(pid peer.ID) error {
 	}
 	clt := _clt.(ci.YTHClient)
 
-	cs.Map.Delete(pid)
-	Error.Printf("peerid:%s close connect\n", pid.String())
-
-	return cs.DelConnInfo(pid, clt)
-	//return clt.Close()
+	err := cs.DelConnInfo(pid, clt)
+	if err == nil {
+		Error.Printf("peerid:%s close connect succeed\n", pid.String())
+		cs.Map.Delete(pid)
+	}else {
+		Error.Printf("peerid:%s close connect error:%s\n", pid.String(), err)
+	}
+	return err
 }
 
 func (cs *ClientStore) GetClient(pid peer.ID) (ci.YTHClient, bool) {
@@ -201,11 +208,9 @@ func (cs *ClientStore) DelConnInfo(pid peer.ID, clt ci.YTHClient) error {
 			}
 		}
 
-		Error.Printf("enter  peerid:%s close succeed\n", pid.String())
-
 		if len(pids) == 0 {
 			delete(cs.connTopid, clt)
-			Error.Printf("peerid:%s close succeed\n", pid.String())
+			Error.Printf("peerid:%s close begin\n", pid.String())
 			return clt.Close()
 		}else {
 			return nil

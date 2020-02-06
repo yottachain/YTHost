@@ -190,7 +190,7 @@ func (hst *host) Accept() {
 
 				if nil != err {
 					fmt.Println("rpc.Serve: accept conn warpClient:", err.Error())
-					//time.Sleep(time.Millisecond*100)
+					time.Sleep(time.Millisecond*100)
 					continue
 				}
 
@@ -293,13 +293,28 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	go hst.srv.ServeConn(sConn)
 	clt := rpc.NewClient(cConn)
 
-	ytclt, err = client.WarpClient(clt, &peer.AddrInfo{
-		ID:    hst.cfg.ID,
-		Addrs: hst.Addrs(),
-	}, hst.cfg.Privkey.GetPublic(), pid)
+	tryCount := 1
+	for {
+		if tryCount > 3 {
+			ytclt = nil
+			_ = sConn.Close()
+			_ = cConn.Close()
+			return
+		}else {
+			tryCount++
+		}
 
-	if nil != err {
-		return
+		ytclt, err = client.WarpClient(clt, &peer.AddrInfo{
+			ID:    hst.cfg.ID,
+			Addrs: hst.Addrs(),
+		}, hst.cfg.Privkey.GetPublic(), pid)
+
+		if nil != err {
+			time.Sleep(time.Millisecond*100)
+			continue
+		}else {
+			break
+		}
 	}
 
 	//go hst.pingConn(sConn, cConn, ytclt)

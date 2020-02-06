@@ -64,7 +64,6 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 	sconn = NewReadWriter(conn, closeRwc)
 	cconn = NewReadWriter(conn, closeRwc)
 
-
 	buf := bufio.NewWriter(conn)
 
 	testCount ++
@@ -76,13 +75,6 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 				cconn.SetReadErr()
 				_ = sconn.Close()
 				_ = cconn.Close()
-
-				//	err := conn.Close()
-				//	if err != nil {
-				//		fmt.Println(err)
-				//	}else {
-				//		fmt.Println("closed succeed")
-				//	}
 
 				return
 			}
@@ -118,7 +110,6 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 			n, err:= conn.WriteConsume(defaultBufSize, flag, msg)
 
 			if err != nil {
-				//fmt.Println(err)
 				continue
 			}
 			if n > 0 {
@@ -398,15 +389,17 @@ type Closer struct {
 
 func (c * Closer) Close() error{
 	c.isClose = true
-	Error.Println("iostream close begin")
-	//if c.isCloseRwc == true {
-	//	c.isCloseRwc = false
-	//	Error.Println("iostream closed")
-		return c.rwc.Close()
-	//}else {
-	//	Error.Println("iostream close fail")
-	//	return nil
-	//}
+
+	if c.isCloseRwc == true {
+		Error.Println("iostream closed begin")
+		err := c.rwc.Close()
+		if err == nil {
+			c.isCloseRwc = false
+		}
+		return err
+	}else {
+		return nil
+	}
 }
 
 func (c * Closer) GetClose() bool {
