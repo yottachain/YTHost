@@ -248,6 +248,7 @@ func (b *Reader) SetReadErr(){
 func (b * Reader) Read(p [] byte) (n int, err error){
 	n = len(p)
 	if n == 0 {
+		Error.Printf("superstratum read error:%s\n", err)
 		err = errors.New(ERR_BUFNOZERO)
 		return
 	}
@@ -270,6 +271,8 @@ func (b * Reader) Read(p [] byte) (n int, err error){
 		b.w = b.w - b.r
 		b.r = 0
 	}
+
+	Error.Printf("superstratum read length:%d \n", n)
 
 	return n, nil
 }

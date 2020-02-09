@@ -30,8 +30,8 @@ func MaddrRelayParse(smaddr string) (saddr string, relayID peer.ID, err error){
 	return
 }
 
-func MaddrToStringList( mas []multiaddr.Multiaddr ) ([]string){
-	smaddrs := make([]string, len(mas))
+func MaddrToStringList( mas []multiaddr.Multiaddr ) ( smaddrs []string){
+	smaddrs = make([]string, len(mas))
 	for k, addr := range mas {
 		maddr := addr.String()
 		smaddrs[k] = maddr

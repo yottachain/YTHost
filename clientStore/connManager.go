@@ -108,13 +108,15 @@ start:
 		if c.IsClosed() || !c.Ping(ctx) {
 			err := cs.DelConnInfo(pid, c, true)
 			if err == nil {
-				Error.Printf("ping fail--->peerid:%s close connect succeed\n", pid.String())
+				Error.Printf("ping fail--->peerid:%s---- clt:%x-%x close connect succeed\n", pid.String(), c , _c)
 				//cs.Map.Delete(pid)
 			}else {
 				Error.Printf("ping fail--->peerid:%s close connect error:%s\n", pid.String(), err)
 			}
 			goto start
 		}
+
+		Error.Printf("connect succeed peerid:%s --- clt:%x-%x\n", pid.String(), c, _c)
 
 		return c, nil
 	}
