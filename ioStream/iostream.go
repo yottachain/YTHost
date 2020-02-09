@@ -46,7 +46,7 @@ func init() {
 const (
 	RES = 'c'
 	RPS = 's'
-	defaultBufSize = 16384
+	defaultBufSize = 4096
 )
 
 var MAGIC = [3]byte{'Y', 'T', 'A'}
