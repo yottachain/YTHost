@@ -80,10 +80,11 @@ start:
 		relayID := util.GetRealyId(mas)
 		if relayID.String() != "" {
 			cli, ok := cs.Map.Load(relayID)
+			Error.Printf("peerid:%s--------->relayID:%s \n", pid.String(), relayID.String())
 
 			if ok {
 				c := cli.(ci.YTHClient)
-				cs.Map.Store(pid, c)
+				cs.Map.Store(pid, cli)
 				cs.StoreConnInfo(pid, c)
 				return c, nil
 			}
@@ -105,10 +106,10 @@ start:
 		// 如果已存在clt无法ping通,删除记录重新创建
 		c := _c.(ci.YTHClient)
 		if c.IsClosed() || !c.Ping(ctx) {
-			err := cs.DelConnInfo(pid, c)
+			err := cs.DelConnInfo(pid, c, true)
 			if err == nil {
 				Error.Printf("ping fail--->peerid:%s close connect succeed\n", pid.String())
-				cs.Map.Delete(pid)
+				//cs.Map.Delete(pid)
 			}else {
 				Error.Printf("ping fail--->peerid:%s close connect error:%s\n", pid.String(), err)
 			}
@@ -148,10 +149,10 @@ func (cs *ClientStore) Close(pid peer.ID) error {
 	}
 	clt := _clt.(ci.YTHClient)
 
-	err := cs.DelConnInfo(pid, clt)
+	err := cs.DelConnInfo(pid, clt, false)
 	if err == nil {
 		Error.Printf("peerid:%s close connect succeed\n", pid.String())
-		cs.Map.Delete(pid)
+		//cs.Map.Delete(pid)
 	}else {
 		Error.Printf("peerid:%s close connect error:%s\n", pid.String(), err)
 	}
@@ -194,26 +195,37 @@ func (cs *ClientStore) StoreConnInfo(pid peer.ID, clt ci.YTHClient) () {
 	}
 }
 
-func (cs *ClientStore) DelConnInfo(pid peer.ID, clt ci.YTHClient) error {
+func (cs *ClientStore) DelConnInfo(pid peer.ID, clt ci.YTHClient, allClose bool) error {
 	cs.l.Lock()
 	defer cs.l.Unlock()
 	pids, ok := cs.connTopid[clt]
 
 	if ok {
-		for i, c_pid := range pids {
-			if pid == c_pid {
-				pids = append(pids[:i], pids[i+1:]...)
-				cs.connTopid[clt] = pids
-				break
+		if allClose == true {
+			for _, c_pid := range pids {
+				cs.Map.Delete(c_pid)
 			}
-		}
-
-		if len(pids) == 0 {
 			delete(cs.connTopid, clt)
-			Error.Printf("peerid:%s close begin\n", pid.String())
+			Error.Printf("peerid:%s all close begin\n", pid.String())
 			return clt.Close()
 		}else {
-			return nil
+			for i, c_pid := range pids {
+				if pid == c_pid {
+					pids = append(pids[:i], pids[i+1:]...)
+					cs.connTopid[clt] = pids
+					break
+				}
+			}
+
+			cs.Map.Delete(pid)
+
+			if len(pids) == 0 {
+				delete(cs.connTopid, clt)
+				Error.Printf("peerid:%s close begin\n", pid.String())
+				return clt.Close()
+			}else {
+				return nil
+			}
 		}
 	}else {
 		//return fmt.Errorf("peer id matching clt error!")

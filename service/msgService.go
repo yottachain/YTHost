@@ -204,7 +204,7 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 			//Error.Printf("peerid:%s  transpondMsg ID: %s\n", head.RemotePeerID.String(), ms.LocalPeerID.String())
 			aesData, err := encrypt.AesCBCEncrypt(resdata, msgKey)
 			if err != nil {
-				Error.Printf("peerid:%s respones AesCBCEncrypt msg error %s\n", head.RemotePeerID.String(), err)
+				Error.Printf("transpondMsg peerid:%s respones AesCBCEncrypt msg error %s\n", head.RemotePeerID.String(), err)
 				return fmt.Errorf("respones AesCBCEncrypt msg error %x", err)
 			}
 			data.Data = aesData

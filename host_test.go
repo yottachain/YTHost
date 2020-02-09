@@ -868,13 +868,13 @@ func TestRelayTransMsg(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		ctx1, cancel1 := context.WithTimeout(context.Background(), time.Second*60)
 		defer cancel1()
-		msg1 := []byte("host1----->>>host2-------->>>host3  d22222222askfjpqejwogeoqnbqdkjdkjklajfdljfalksjfkjdsaklfjlkdajsfkl3333333djslkfjasjfladsjlfj\n" +
-			"vczvlkcjxvljkzcl;xjvk;cjv;lzkcxj;lvkfgagsdgggggggggggggggggggggggggggggggggggggvcbxbbxzcz3333bxc\n" +
-			"vczvlkcjxvljkzcl;xjvk;cjv;lzkcxj;lvkfgagsdgggggggggggggggggggggggggggggggggggggvcbxbbxzczbxc\n" +
-			"daskfjpqejwogeoqnbqdkjdkjklajfdljfalksjfkjdsaklfjlkdajsfkldjslkfjasjfladsjlfj111111111111ddddddddddd\n" +
-			"d22222222askfjpqejwogeoqnbqdkjdkjklajfdljfalksjfkjdsaklfjlkdajsfkl3333333djslkfjasjfladsjlfj\n" +
-			"vczvlkcjxvljkzcl;xjvk;cjv;lzkcxj;lvkfgagsdgggggggggggggggggggggggggggggggggggggvcbxbbxzcz3333bxc\n" +
-			"vczvlkcjxvljkzcl;xjvk;cjv;lzkcxj.;lvkfgagsdgggggggggggggggggggggggggggggggggggggvcbxbbxzczbxc\n" +
+		msg1 := []byte("host1----->>>host2-------->>>host3  d22222222askfjpqejwogeoqnbqdkjdkjklajfdljfalksjfkjdsaklfjlkdajsfkl3333333djslkfjasjfladsjlfj" +
+			"vczvlkcjxvljkzcl;xjvk;cjv;lzkcxj;lvkfgagsdgggggggggggggggggggggggggggggggggggggvcbxbbxzcz3333bxc" +
+			"vczvlkcjxvljkzcl;xjvk;cjv;lzkcxj;lvkfgagsdgggggggggggggggggggggggggggggggggggggvcbxbbxzczbxc" +
+			"daskfjpqejwogeoqnbqdkjdkjklajfdljfalksjfkjdsaklfjlkdajsfkldjslkfjasjfladsjlfj111111111111ddddddddddd" +
+			"d22222222askfjpqejwogeoqnbqdkjdkjklajfdljfalksjfkjdsaklfjlkdajsfkl3333333djslkfjasjfladsjlfj" +
+			"vczvlkcjxvljkzcl;xjvk;cjv;lzkcxj;lvkfgagsdgggggggggggggggggggggggggggggggggggggvcbxbbxzcz3333bxc" +
+			"vczvlkcjxvljkzcl;xjvk;cjv;lzkcxj.;lvkfgagsdgggggggggggggggggggggggggggggggggggggvcbxbbxzczbxc" +
 			"daskfjpqejwogeoqnbqdkjdkjklajfdljfalksjfkjdsaklfjlkdajsfkldjslkfjasjfladsjlfj111111111111ddddddddddd")
 		if (cltt1 != nil) && (*cltt1) != nil && (!(*cltt1).IsClosed()) {
 			ret, err := (*cltt1).SendMsg(ctx1, hst3ID, 0x0, msg1)

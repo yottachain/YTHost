@@ -82,8 +82,8 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 
 			if err != nil  {
 				if err == io.EOF {
-					//_ = sconn.Close()
-					//_ = cconn.Close()
+					_ = sconn.Close()
+					_ = cconn.Close()
 				}
 				continue
 			}
@@ -110,14 +110,15 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 			n, err:= conn.WriteConsume(defaultBufSize, flag, msg)
 
 			if err != nil {
+				Error.Printf("conn write consume error:%s\n", err)
 				continue
 			}
 			if n > 0 {
 				l.Lock()
 				_, err = buf.Write(msg[0:n+6])
-				//if nil == err {
+				if nil == err {
 					_ = buf.Flush()
-				//}
+				}
 				l.Unlock()
 			}
 		}
@@ -217,6 +218,7 @@ func DecodeConn(conn io.ReadWriteCloser, buf []byte) (flag byte, bLen uint16, ms
 			return
 		}
 		bLen = uint16(n)
+		Error.Printf("decode conn msg len:%d\n", bLen)
 	}
 
 	return
@@ -239,15 +241,16 @@ func (b *Reader) Available() int { return len(b.buf) - b.w }
 func (b *Reader) SetReadErr(){
 	b.l.Lock()
 	defer b.l.Unlock()
+	b.rc <- true
 	b.r = -1
 }
 
 func (b * Reader) Read(p [] byte) (n int, err error){
-	/*n = len(p)
+	n = len(p)
 	if n == 0 {
 		err = errors.New(ERR_BUFNOZERO)
 		return
-	}*/
+	}
 
 	<- b.rc
 
@@ -319,6 +322,8 @@ func (b *Writer) Write(p []byte) (nn int, err error) {
 			p = p[n:]
 			b.n += n
 			nn += n
+			b.l.Unlock()
+			b.wc <- true
 		}else {
 			n := copy(b.buf[b.n:], p)
 			b.n += n
@@ -327,17 +332,15 @@ func (b *Writer) Write(p []byte) (nn int, err error) {
 			b.wc <- true
 			break
 		}
-		b.l.Unlock()
-		b.wc <- true
 	}
 
 	return nn, nil
 }
 
 func (b *Writer) WriteConsume(n int, flag byte, msg []byte) ( nn int, err error){
-	if n <= 0 {
-		return
-	}
+	//if n <= 0 {
+	//	return
+	//}
 
 	<- b.wc
 
@@ -358,9 +361,14 @@ func (b *Writer) WriteConsume(n int, flag byte, msg []byte) ( nn int, err error)
 	nn = copy(msg[6:], b.buf[:b.n])
 	b.n = b.n - nn
 	copy(b.buf, b.buf[nn:])
+	Error.Printf("write consume len:%d\n", nn)
 	mLenbyte, err := Int16Tobyte(uint16(nn))
 	msg[4] = mLenbyte[0]
 	msg[5] = mLenbyte[1]
+
+	//test
+	bLen, _ := byteToInt16(mLenbyte[0:2])
+	Error.Printf("decode write consume len:%d\n", bLen)
 
 	return
 }
