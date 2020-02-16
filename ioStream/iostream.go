@@ -88,13 +88,13 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 				continue
 			}
 			if f == RES {
-				Error.Printf("request flag is:%s", string(f))
+				//Error.Printf("request flag is:%s", string(f))
 				_ = sconn.ReadAppend(msg)
-				Error.Println("request msg end")
+				//Error.Println("request msg end")
 			}else if f == RPS {
-				Error.Printf("response flag is:%s", string(f))
+				//Error.Printf("response flag is:%s", string(f))
 				_ = cconn.ReadAppend(msg)
-				Error.Println("response msg end")
+				//Error.Println("response msg end")
 			}else {
 				continue
 			}
@@ -110,7 +110,7 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 			n, err:= conn.WriteConsume(defaultBufSize, flag, msg)
 
 			if err != nil {
-				Error.Printf("conn write consume error:%s\n", err)
+				//Error.Printf("conn write consume error:%s\n", err)
 				continue
 			}
 			if n > 0 {
@@ -218,7 +218,7 @@ func DecodeConn(conn io.ReadWriteCloser, buf []byte) (flag byte, bLen uint16, ms
 			return
 		}
 		bLen = uint16(n)
-		Error.Printf("decode conn msg len:%d\n", bLen)
+		//Error.Printf("decode conn msg len:%d\n", bLen)
 	}
 
 	return
@@ -248,7 +248,7 @@ func (b *Reader) SetReadErr(){
 func (b * Reader) Read(p [] byte) (n int, err error){
 	n = len(p)
 	if n == 0 {
-		Error.Printf("superstratum read error:%s\n", err)
+		//Error.Printf("superstratum read error:%s\n", err)
 		err = errors.New(ERR_BUFNOZERO)
 		return
 	}
@@ -272,7 +272,7 @@ func (b * Reader) Read(p [] byte) (n int, err error){
 		b.r = 0
 	}
 
-	Error.Printf("superstratum read length:%d \n", n)
+	//Error.Printf("superstratum read length:%d \n", n)
 
 	return n, nil
 }
@@ -364,14 +364,14 @@ func (b *Writer) WriteConsume(n int, flag byte, msg []byte) ( nn int, err error)
 	nn = copy(msg[6:], b.buf[:b.n])
 	b.n = b.n - nn
 	copy(b.buf, b.buf[nn:])
-	Error.Printf("write consume len:%d\n", nn)
+	//Error.Printf("write consume len:%d\n", nn)
 	mLenbyte, err := Int16Tobyte(uint16(nn))
 	msg[4] = mLenbyte[0]
 	msg[5] = mLenbyte[1]
 
 	//test
-	bLen, _ := byteToInt16(mLenbyte[0:2])
-	Error.Printf("decode write consume len:%d\n", bLen)
+	//bLen, _ := byteToInt16(mLenbyte[0:2])
+	//Error.Printf("decode write consume len:%d\n", bLen)
 
 	return
 }
@@ -403,7 +403,7 @@ func (c * Closer) Close() error{
 	c.isClose = true
 
 	if c.isCloseRwc == true {
-		Error.Println("iostream closed begin")
+		//Error.Println("iostream closed begin")
 		err := c.rwc.Close()
 		if err == nil {
 			c.isCloseRwc = false

@@ -48,7 +48,7 @@ func TestMsg(t *testing.T){
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	clt, _, err := hst1.Connect(ctx, hst.Config().ID, hst.Addrs())
+	clt, err := hst1.Connect(ctx, hst.Config().ID, hst.Addrs())
 	// 关闭连接
 	defer clt.Close()
 	if err != nil {

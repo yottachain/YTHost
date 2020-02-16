@@ -189,7 +189,7 @@ func (hst *host) Accept() {
 				}, hst.cfg.Privkey.GetPublic(), peer.ID(0))			//这种情况目标ID就是remoteID
 
 				if nil != err {
-					fmt.Println("rpc.Serve: accept conn warpClient:", err.Error())
+					//fmt.Println("rpc.Serve: accept conn warpClient:", err.Error())
 					time.Sleep(time.Millisecond*100)
 					continue
 				}

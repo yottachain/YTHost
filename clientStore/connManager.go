@@ -80,7 +80,7 @@ start:
 		relayID := util.GetRealyId(mas)
 		if relayID.String() != "" {
 			cli, ok := cs.Map.Load(relayID)
-			Error.Printf("peerid:%s--------->relayID:%s \n", pid.String(), relayID.String())
+			//Error.Printf("peerid:%s--------->relayID:%s \n", pid.String(), relayID.String())
 
 			if ok {
 				c := cli.(ci.YTHClient)
@@ -108,15 +108,15 @@ start:
 		if c.IsClosed() || !c.Ping(ctx) {
 			err := cs.DelConnInfo(pid, c, true)
 			if err == nil {
-				Error.Printf("ping fail--->peerid:%s---- clt:%x-%x close connect succeed\n", pid.String(), c , _c)
+				//Error.Printf("ping fail--->peerid:%s---- clt:%x-%x close connect succeed\n", pid.String(), c , _c)
 				//cs.Map.Delete(pid)
 			}else {
-				Error.Printf("ping fail--->peerid:%s close connect error:%s\n", pid.String(), err)
+				//Error.Printf("ping fail--->peerid:%s close connect error:%s\n", pid.String(), err)
 			}
 			goto start
 		}
 
-		Error.Printf("connect succeed peerid:%s --- clt:%x-%x\n", pid.String(), c, _c)
+		//Error.Printf("connect succeed peerid:%s --- clt:%x-%x\n", pid.String(), c, _c)
 
 		return c, nil
 	}
@@ -146,17 +146,17 @@ func (cs *ClientStore) GetByAddrString(ctx context.Context, id string, addrs []s
 func (cs *ClientStore) Close(pid peer.ID) error {
 	_clt, ok := cs.Map.Load(pid)
 	if !ok {
-		Error.Printf("peerid:%s connect not exist\n", pid.String())
+		//Error.Printf("peerid:%s connect not exist\n", pid.String())
 		return fmt.Errorf("no find client ID is %s", pid.Pretty())
 	}
 	clt := _clt.(ci.YTHClient)
 
 	err := cs.DelConnInfo(pid, clt, false)
 	if err == nil {
-		Error.Printf("peerid:%s close connect succeed\n", pid.String())
+		//Error.Printf("peerid:%s close connect succeed\n", pid.String())
 		//cs.Map.Delete(pid)
 	}else {
-		Error.Printf("peerid:%s close connect error:%s\n", pid.String(), err)
+		//Error.Printf("peerid:%s close connect error:%s\n", pid.String(), err)
 	}
 	return err
 }
@@ -180,17 +180,17 @@ func (cs *ClientStore) StoreConnInfo(pid peer.ID, clt ci.YTHClient) () {
 	if ok {
 		for _, c_pid := range pids {
 			if pid == c_pid {
-				Error.Printf("peerid:%s connect exist\n", pid.String())
+				//Error.Printf("peerid:%s connect exist\n", pid.String())
 				exist = 1
 				break
 			}
 		}
 		if exist == 0 {
-			Error.Printf("peerid:%s connect append ----\n", pid.String())
+			//Error.Printf("peerid:%s connect append ----\n", pid.String())
 			cs.connTopid[clt] = append(pids, pid)
 		}
 	}else {
-		Error.Printf("peerid:%s connect create ======\n", pid.String())
+		//Error.Printf("peerid:%s connect create ======\n", pid.String())
 		pids = make([]peer.ID, 1)
 		pids[0] = pid
 		cs.connTopid[clt] = pids
@@ -208,7 +208,7 @@ func (cs *ClientStore) DelConnInfo(pid peer.ID, clt ci.YTHClient, allClose bool)
 				cs.Map.Delete(c_pid)
 			}
 			delete(cs.connTopid, clt)
-			Error.Printf("peerid:%s all close begin\n", pid.String())
+			//Error.Printf("peerid:%s all close begin\n", pid.String())
 			return clt.Close()
 		}else {
 			for i, c_pid := range pids {
@@ -223,7 +223,7 @@ func (cs *ClientStore) DelConnInfo(pid peer.ID, clt ci.YTHClient, allClose bool)
 
 			if len(pids) == 0 {
 				delete(cs.connTopid, clt)
-				Error.Printf("peerid:%s close begin\n", pid.String())
+				//Error.Printf("peerid:%s close begin\n", pid.String())
 				return clt.Close()
 			}else {
 				return nil

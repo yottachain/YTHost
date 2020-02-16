@@ -153,7 +153,7 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 	ms.msgPriMapinit()
 
 	if ms.Handler == nil {
-		Error.Printf("no handler %d\n", req.MsgId)
+		//Error.Printf("no handler %d\n", req.MsgId)
 		return fmt.Errorf("no handler %x", req.MsgId)
 	}
 
@@ -176,7 +176,7 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 	//解密消息
 	_k, ok := ms.msgPriMap.Load(head.RemotePeerID)
 	if !ok {
-		Error.Printf("no msgPriKey %s\n", head.RemotePeerID.String())
+		//Error.Printf("no msgPriKey %s\n", head.RemotePeerID.String())
 		return fmt.Errorf("no msgPriKey %s", head.RemotePeerID.String())
 	}
 	msgKey := _k.([]byte)
@@ -185,7 +185,7 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 
 	reqData, err := encrypt.AesCBCDncrypt(req.ReqData, msgKey)
 	if err != nil {
-		Error.Printf("AesCBCDncrypt msg error %s\n", head.RemotePeerID.String())
+		//Error.Printf("AesCBCDncrypt msg error %s\n", head.RemotePeerID.String())
 		return fmt.Errorf("AesCBCDncrypt msg error %x", head.RemotePeerID)
 	}
 
@@ -198,13 +198,13 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 		if dstr != lstr {
 			resdata, err := ms.transpondMsg(req.DstID, req.MsgId, reqData)
 			if nil != err {
-				Error.Printf("peerid:%s  transpondMsg ID: %s---%s\n",head.RemotePeerID.String(), ms.LocalPeerID.String(), err)
+				//Error.Printf("peerid:%s  transpondMsg ID: %s---%s\n",head.RemotePeerID.String(), ms.LocalPeerID.String(), err)
 				return err
 			}
 			//Error.Printf("peerid:%s  transpondMsg ID: %s\n", head.RemotePeerID.String(), ms.LocalPeerID.String())
 			aesData, err := encrypt.AesCBCEncrypt(resdata, msgKey)
 			if err != nil {
-				Error.Printf("transpondMsg peerid:%s respones AesCBCEncrypt msg error %s\n", head.RemotePeerID.String(), err)
+				//Error.Printf("transpondMsg peerid:%s respones AesCBCEncrypt msg error %s\n", head.RemotePeerID.String(), err)
 				return fmt.Errorf("respones AesCBCEncrypt msg error %x", err)
 			}
 			data.Data = aesData
@@ -216,14 +216,14 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 		} else {
 			aesData, err := encrypt.AesCBCEncrypt(resdata, msgKey)
 			if err != nil {
-				Error.Printf("peerid:%s respones AesCBCEncrypt msg error %s\n",head.RemotePeerID.String(),  err)
+				//Error.Printf("peerid:%s respones AesCBCEncrypt msg error %s\n",head.RemotePeerID.String(),  err)
 				return fmt.Errorf("respones AesCBCEncrypt msg error %x", err)
 			}
 			data.Data = aesData
 			return nil
 		}
 	} else {
-		Error.Printf("no handler %d\n", req.MsgId)
+		//Error.Printf("no handler %d\n", req.MsgId)
 		return fmt.Errorf("no handler %x", req.MsgId)
 	}
 }

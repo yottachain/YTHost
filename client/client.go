@@ -214,7 +214,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, pid peer.ID, id int32, data
 
 		if err := yc.Call("ms.HandleMsg",
 			service.Request{id, aesData, pi, pid}, &res); err != nil {
-			Error.Println("ms.HandleMsg error:", err)
+			//Error.Println("ms.HandleMsg error:", err)
 			errChan <- err
 		} else {
 			resChan <- res
