@@ -117,7 +117,7 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {
 	return &ClientStore{
 		connFunc,
-		make(chan struct{}, 10),
+		make(chan struct{}, 1000),
 		sync.Map{},
 		sync.Mutex{},
 	}
