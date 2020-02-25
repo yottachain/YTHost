@@ -1024,7 +1024,7 @@ func TestRelayTransMsg2(t *testing.T) {
 	})
 
 	//mastr = "/ip4/127.0.0.1/tcp/9001/"
-	mastr = "/ip4/192.168.3.182/tcp/9001/"
+	mastr = "/ip4/192.168.1.14/tcp/9001/"
 	//mastr = "/ip4/172.17.32.8/tcp/9001/"
 	maddrs = make([]multiaddr.Multiaddr, 1)
 	maddrs[0], err = multiaddr.NewMultiaddr(mastr)
@@ -1048,7 +1048,7 @@ func TestRelayTransMsg2(t *testing.T) {
 	fmt.Println("---------------------------")
 
 	//mastr = "/ip4/127.0.0.1/tcp/9001/p2p/" + hst2.Config().ID.String() + "/p2p-circuit/"
-	mastr = "/ip4/192.168.3.182/tcp/9001/p2p/" + hst2.Config().ID.String() + "/p2p-circuit/"
+	mastr = "/ip4/192.168.1.14/tcp/9001/p2p/" + hst2.Config().ID.String() + "/p2p-circuit/"
 	//mastr = "/ip4/172.17.32.8/tcp/9001/p2p/" + hst2.Config().ID.String() + "/p2p-circuit/"
 	maddrs = make([]multiaddr.Multiaddr, 1)
 	maddrs[0], err = multiaddr.NewMultiaddr(mastr)
@@ -1071,7 +1071,7 @@ func TestRelayTransMsg2(t *testing.T) {
 	hst1.ClientStore().PrintConnInfo(clt3)
 	fmt.Println("---------------------------")
 
-	mastr = "/ip4/192.168.3.182/tcp/9001/p2p/" + hst2.Config().ID.String() + "/p2p-circuit/"
+	mastr = "/ip4/192.168.1.14/tcp/9001/p2p/" + hst2.Config().ID.String() + "/p2p-circuit/"
 	//mastr ="/ip4/172.17.32.8/tcp/9001/p2p/" + hst2.Config().ID.String() + "/p2p-circuit/"
 	maddrs = make([]multiaddr.Multiaddr, 1)
 	maddrs[0], err = multiaddr.NewMultiaddr(mastr)

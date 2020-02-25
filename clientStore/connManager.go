@@ -231,6 +231,7 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		make(chan struct{}, 1000),
 		sync.Map{},
 		sync.Mutex{},
+		sync.Mutex{},
 		map[ci.YTHClient][]peer.ID{},
 	}
 }
