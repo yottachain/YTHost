@@ -12,44 +12,9 @@ import (
 	"github.com/yottachain/YTHost/clientStore"
 	"github.com/yottachain/YTHost/encrypt"
 	"github.com/yottachain/YTHost/peerInfo"
-	"io"
-	"io/ioutil"
-	"log"
-	"os"
 	"sync"
 	"time"
 )
-
-var (
-	Trace   *log.Logger // 记录所有日志
-	Info    *log.Logger // 重要的信息
-	Warning *log.Logger // 需要注意的信息
-	Error   *log.Logger // 非常严重的问题
-)
-
-func init() {
-	file, err := os.OpenFile("errors.txt",
-		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalln("Failed to open error log file:", err)
-	}
-
-	Trace = log.New(ioutil.Discard,
-		"TRACE: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-
-	Info = log.New(os.Stdout,
-		"INFO: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-
-	Warning = log.New(os.Stdout,
-		"WARNING: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-
-	Error = log.New(io.MultiWriter(file, os.Stderr),
-		"ERROR: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-}
 
 type MsgId int32
 
@@ -113,6 +78,7 @@ type Request struct {
 
 type Response struct {
 	Data []byte
+	ReturnTime time.Time
 }
 
 type IdToMsgPriKey struct {
@@ -153,7 +119,6 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 	ms.msgPriMapinit()
 
 	if ms.Handler == nil {
-		//Error.Printf("no handler %d\n", req.MsgId)
 		return fmt.Errorf("no handler %x", req.MsgId)
 	}
 
@@ -220,6 +185,7 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 				return fmt.Errorf("respones AesCBCEncrypt msg error %x", err)
 			}
 			data.Data = aesData
+			data.ReturnTime = time.Now()
 			return nil
 		}
 	} else {

@@ -7,47 +7,14 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	ci "github.com/yottachain/YTHost/clientInterface"
 	"github.com/yottachain/YTHost/util"
-	"io"
-	"io/ioutil"
-	"log"
-	"os"
 	"sync"
 )
 
-var (
-	Trace   *log.Logger // 记录所有日志
-	Info    *log.Logger // 重要的信息
-	Warning *log.Logger // 需要注意的信息
-	Error   *log.Logger // 非常严重的问题
-)
-
-func init() {
-	file, err := os.OpenFile("errors.txt",
-		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalln("Failed to open error log file:", err)
-	}
-
-	Trace = log.New(ioutil.Discard,
-		"TRACE: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-
-	Info = log.New(os.Stdout,
-		"INFO: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-
-	Warning = log.New(os.Stdout,
-		"WARNING: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-
-	Error = log.New(io.MultiWriter(file, os.Stderr),
-		"ERROR: ",
-		log.Ldate|log.Ltime|log.Lshortfile)
-}
-
 type ClientStore struct {
 	connect func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (ci.YTHClient, error)
+	q       chan struct{}
 	sync.Map
+	sync.Mutex
 	l sync.Mutex	//对下面map进行加锁
 	connTopid map[ci.YTHClient] []peer.ID //记录一个链接被多少个pid使用，如果通过中继建立的链接那么一个实际链接对应多个pid
 }
@@ -63,6 +30,11 @@ func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 }
 
 func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (ci.YTHClient, error) {
+	cs.q <- struct {
+	}{}
+	defer func() {
+		<-cs.q
+	}()
 
 	// 尝试次数
 	var tryCount int
@@ -144,6 +116,8 @@ func (cs *ClientStore) GetByAddrString(ctx context.Context, id string, addrs []s
 
 // Close 关闭一个客户端
 func (cs *ClientStore) Close(pid peer.ID) error {
+	cs.Lock()
+	defer cs.Unlock()
 	_clt, ok := cs.Map.Load(pid)
 	if !ok {
 		//Error.Printf("peerid:%s connect not exist\n", pid.String())
@@ -254,6 +228,7 @@ func (cs *ClientStore) PrintConnInfo(clt ci.YTHClient) {
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (ci.YTHClient, error)) *ClientStore {
 	return &ClientStore{
 		connFunc,
+		make(chan struct{}, 1000),
 		sync.Map{},
 		sync.Mutex{},
 		map[ci.YTHClient][]peer.ID{},
