@@ -10,6 +10,7 @@ import (
 	"github.com/yottachain/YTHost/encrypt"
 	"github.com/yottachain/YTHost/peerInfo"
 	"sync"
+	"time"
 )
 
 type MsgId int32
@@ -69,6 +70,7 @@ type Request struct {
 
 type Response struct {
 	Data []byte
+	ReturnTime time.Time
 }
 
 type IdToMsgPriKey struct {
@@ -160,6 +162,7 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 				return fmt.Errorf("respones AesCBCEncrypt msg error %x", err)
 			}
 			data.Data = aesData
+			data.ReturnTime = time.Now()
 			return nil
 		}
 	} else {
