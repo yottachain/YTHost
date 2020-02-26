@@ -51,8 +51,6 @@ const (
 
 var MAGIC = [3]byte{'Y', 'T', 'A'}
 
-var testCount  = 0
-
 func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteCloser, cconn *ReadWriteCloser){
 	l := sync.Mutex{}
 
@@ -66,7 +64,6 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 
 	buf := bufio.NewWriter(conn)
 
-	testCount ++
 	go func(conn io.ReadWriteCloser, sconn *ReadWriteCloser, cconn *ReadWriteCloser) {
 		by := make([]byte, 16)
 		for {
@@ -403,7 +400,6 @@ func (c * Closer) Close() error{
 	c.isClose = true
 
 	if c.isCloseRwc == true {
-		//Error.Println("iostream closed begin")
 		err := c.rwc.Close()
 		if err == nil {
 			c.isCloseRwc = false

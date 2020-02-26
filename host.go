@@ -336,19 +336,21 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		clen := len(connChan)
 		if clen > 0 {
 			<- conned
-			clen := len(connChan)
+			//这里一定要再重新计算一次 可能在主函数退出前走的上条语句，退出之后ConnChan长度已经变了
+			clen = len(connChan)
 			for i := 0; i < clen; i++ {
 				c := <-connChan
 				_ = c.Close()
 			}
 		}
 
-		select {
-		case <- conned:
-		case <-time.After(time.Millisecond * 500):
-		}
+		//select {
+		//case <- conned:
+		//case <-time.After(time.Millisecond * 500):
+		//}
 
 		select {
+		case <- conned:
 		case errChan <- fmt.Errorf("relay dail all maddr fail"):
 		case <-time.After(time.Millisecond * 500):
 			return
