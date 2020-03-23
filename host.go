@@ -92,7 +92,9 @@ func (hst *host) Accept() {
 		panic(err)
 	}
 
-	hst.srv.Accept(mnet.NetListener(hst.listener))
+	for {
+		hst.srv.Accept(mnet.NetListener(hst.listener))
+	}
 }
 
 func (hst *host) Listenner() mnet.Listener {
