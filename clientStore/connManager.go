@@ -33,6 +33,8 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	defer func() {
 		<-cs.q
 	}()
+	cs.Mutex.Lock()
+	defer cs.Mutex.Unlock()
 
 	// 尝试次数
 	var tryCount int
@@ -58,6 +60,7 @@ start:
 		// 如果已存在clt无法ping通,删除记录重新创建
 		c := _c.(*client.YTHostClient)
 		if c.IsClosed() || !c.Ping(ctx) {
+			c.Close()
 			cs.Map.Delete(pid)
 			goto start
 		}
