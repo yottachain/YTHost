@@ -10,7 +10,6 @@ import (
 	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/clientStore"
 	"github.com/yottachain/YTHost/config"
-	"github.com/yottachain/YTHost/connAutoCloser"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/peerInfo"
 	"github.com/yottachain/YTHost/service"
@@ -104,9 +103,9 @@ func (hst *host) Accept() {
 			log.Print("rpc.Serve: accept:", err.Error())
 			continue
 		}
-		ac := connAutoCloser.New(conn)
-		ac.SetOuttime(time.Minute)
-		go hst.srv.ServeConn(ac)
+		//ac := connAutoCloser.New(conn)
+		//ac.SetOuttime(time.Minute)
+		go hst.srv.ServeConn(conn)
 	}
 }
 

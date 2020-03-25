@@ -15,6 +15,7 @@ type ClientStore struct {
 	q       chan struct{}
 	sync.Map
 	sync.Mutex
+	MtxMap sync.Map
 }
 
 // Get 获取一个客户端，如果没有，建立新的客户端连接
@@ -34,8 +35,10 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 		<-cs.q
 	}()
 
-	cs.Lock()
-	defer cs.Unlock()
+	actul, _ := cs.MtxMap.LoadOrStore(pid, &sync.Mutex{})
+	mux := actul.(*sync.Mutex)
+	mux.Lock()
+	defer mux.Unlock()
 
 	// 尝试次数
 	var tryCount int
@@ -124,5 +127,6 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		make(chan struct{}, 1000),
 		sync.Map{},
 		sync.Mutex{},
+		sync.Map{},
 	}
 }
