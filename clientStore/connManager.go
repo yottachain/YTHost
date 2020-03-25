@@ -34,6 +34,9 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 		<-cs.q
 	}()
 
+	cs.Lock()
+	defer cs.Unlock()
+
 	// 尝试次数
 	var tryCount int
 	const max_try_count = 5
