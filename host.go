@@ -10,6 +10,7 @@ import (
 	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/clientStore"
 	"github.com/yottachain/YTHost/config"
+	"github.com/yottachain/YTHost/connAutoCloser"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/peerInfo"
 	"github.com/yottachain/YTHost/service"
@@ -92,8 +93,20 @@ func (hst *host) Accept() {
 		panic(err)
 	}
 
+	//for {
+	//	hst.srv.Accept(mnet.NetListener(hst.listener))
+	//}
+
+	lis := mnet.NetListener(hst.listener)
 	for {
-		hst.srv.Accept(mnet.NetListener(hst.listener))
+		conn, err := lis.Accept()
+		if err != nil {
+			log.Print("rpc.Serve: accept:", err.Error())
+			continue
+		}
+		ac := connAutoCloser.New(conn)
+		ac.SetOuttime(time.Minute)
+		go hst.srv.ServeConn(ac)
 	}
 }
 
