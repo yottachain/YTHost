@@ -3,6 +3,13 @@ package host
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
+	"net/rpc"
+	"sync"
+	"time"
+
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
@@ -14,12 +21,6 @@ import (
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/peerInfo"
 	"github.com/yottachain/YTHost/service"
-	"log"
-	"net/http"
-	_ "net/http/pprof"
-	"net/rpc"
-	"sync"
-	"time"
 )
 
 //type Host interface {
@@ -196,7 +197,7 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 			if conn, err := d.DialContext(ctx, addr); err == nil {
 				select {
 				case connChan <- conn:
-				case <-time.After(time.Second * 5):
+				case <-time.After(time.Second * 30):
 				}
 			} else {
 				if hst.cfg.Debug {
