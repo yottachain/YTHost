@@ -35,10 +35,10 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 		<-cs.q
 	}()
 
-	//actul, _ := cs.MtxMap.LoadOrStore(pid, &sync.Mutex{})
-	//mux := actul.(*sync.Mutex)
-	//mux.Lock()
-	//defer mux.Unlock()
+	actul, _ := cs.MtxMap.LoadOrStore(pid, &sync.Mutex{})
+	mux := actul.(*sync.Mutex)
+	mux.Lock()
+	defer mux.Unlock()
 
 	// 尝试次数
 	var tryCount int
