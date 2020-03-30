@@ -3,6 +3,13 @@ package host
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
+	"net/rpc"
+	"sync"
+	"time"
+
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
@@ -10,15 +17,10 @@ import (
 	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/clientStore"
 	"github.com/yottachain/YTHost/config"
+	"github.com/yottachain/YTHost/connAutoCloser"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/peerInfo"
 	"github.com/yottachain/YTHost/service"
-	"log"
-	"net/http"
-	_ "net/http/pprof"
-	"net/rpc"
-	"sync"
-	"time"
 )
 
 //type Host interface {
@@ -92,8 +94,20 @@ func (hst *host) Accept() {
 		panic(err)
 	}
 
+	//for {
+	//	hst.srv.Accept(mnet.NetListener(hst.listener))
+	//}
+
+	lis := mnet.NetListener(hst.listener)
 	for {
-		hst.srv.Accept(mnet.NetListener(hst.listener))
+		conn, err := lis.Accept()
+		if err != nil {
+			log.Print("rpc.Serve: accept:", err.Error())
+			continue
+		}
+		ac := connAutoCloser.New(conn)
+		ac.SetOuttime(time.Minute * 5)
+		go hst.srv.ServeConn(ac)
 	}
 }
 
@@ -183,7 +197,7 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 			if conn, err := d.DialContext(ctx, addr); err == nil {
 				select {
 				case connChan <- conn:
-				case <-time.After(time.Second * 5):
+				case <-time.After(time.Second * 30):
 				}
 			} else {
 				if hst.cfg.Debug {
