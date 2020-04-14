@@ -40,13 +40,13 @@ type host struct {
 	srv      *rpc.Server
 	service.HandlerMap
 	clientStore *clientStore.ClientStore
-	Optmizer    *optimizer.Optmizer
+	optmizer    *optimizer.Optmizer
 }
 
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
-	hst.Optmizer = optimizer.New()
-	go hst.Optmizer.Run(context.Background())
+	hst.optmizer = optimizer.New()
+	go hst.optmizer.Run(context.Background())
 
 	hst.cfg = config.NewConfig()
 
@@ -256,9 +256,13 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 
 	// 反馈给opt
 	if err != nil {
-		hst.Optmizer.Feedback(counter.InRow{pid.Pretty(), 1})
+		hst.optmizer.Feedback(counter.InRow{pid.Pretty(), 1})
 	} else {
-		hst.Optmizer.Feedback(counter.InRow{pid.Pretty(), 0})
+		hst.optmizer.Feedback(counter.InRow{pid.Pretty(), 0})
 	}
 	return res, err
+}
+
+func (hst *host) Optmizer() *optimizer.Optmizer {
+	return hst.optmizer
 }
