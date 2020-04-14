@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"fmt"
+	counter "github.com/yottachain/NodeOptimization/Counter"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -14,6 +15,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
 	mnet "github.com/multiformats/go-multiaddr-net"
+	"github.com/yottachain/NodeOptimization"
 	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/clientStore"
 	"github.com/yottachain/YTHost/config"
@@ -38,10 +40,14 @@ type host struct {
 	srv      *rpc.Server
 	service.HandlerMap
 	clientStore *clientStore.ClientStore
+	Optmizer    *optimizer.Optmizer
 }
 
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
+	hst.Optmizer = optimizer.New()
+	hst.Optmizer.Run(context.Background())
+
 	hst.cfg = config.NewConfig()
 
 	for _, bindOp := range options {
@@ -247,5 +253,12 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
 	}
 	res, err := clt.SendMsg(ctx, mid, msg)
+
+	// 反馈给opt
+	if err != nil {
+		hst.Optmizer.Feedback(counter.InRow{pid.Pretty(), 1})
+	} else {
+		hst.Optmizer.Feedback(counter.InRow{pid.Pretty(), 0})
+	}
 	return res, err
 }
