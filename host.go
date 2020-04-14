@@ -46,7 +46,7 @@ type host struct {
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
 	hst.Optmizer = optimizer.New()
-	hst.Optmizer.Run(context.Background())
+	go hst.Optmizer.Run(context.Background())
 
 	hst.cfg = config.NewConfig()
 
