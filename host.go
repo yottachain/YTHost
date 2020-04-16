@@ -106,7 +106,7 @@ func (hst *host) Accept() {
 			continue
 		}
 		ac := connAutoCloser.New(conn)
-		ac.SetOuttime(time.Minute * 5)
+		ac.SetOuttime(time.Minute * 30)
 		go hst.srv.ServeConn(ac)
 	}
 }
