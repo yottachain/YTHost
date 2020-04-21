@@ -85,9 +85,17 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey}
 
 		if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res); err != nil {
-			errChan <- err
+			select {
+			case errChan <- err:
+			case <-ctx.Done():
+				errChan <- fmt.Errorf("ctx time out")
+			}
 		} else {
-			resChan <- res
+			select {
+			case resChan <- res:
+			case <-ctx.Done():
+				errChan <- fmt.Errorf("ctx time out")
+			}
 		}
 	}()
 
