@@ -88,13 +88,13 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 			select {
 			case errChan <- err:
 			case <-ctx.Done():
-				errChan <- fmt.Errorf("ctx time out")
+				return
 			}
 		} else {
 			select {
 			case resChan <- res:
 			case <-ctx.Done():
-				errChan <- fmt.Errorf("ctx time out")
+				return
 			}
 		}
 	}()
