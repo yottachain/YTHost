@@ -46,6 +46,25 @@ type host struct {
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
 	hst.optmizer = optimizer.New()
+
+	// 计算得分
+	hst.optmizer.GetScore = func(row counter.NodeCountRow) int64 {
+		defer func() {
+			err := recover()
+			if err != nil {
+				fmt.Println(err.(error).Error())
+			}
+		}()
+		// 【成功,失败,延迟大于300,1000,3000毫秒】
+		var w []int64 = []int64{50, -25, -5, -10, -15}
+		var source int64 = 0
+
+		for k, v := range w {
+			source = source + row[k]*v
+		}
+
+		return source
+	}
 	go hst.optmizer.Run(context.Background())
 
 	hst.cfg = config.NewConfig()
@@ -248,17 +267,32 @@ func (hst *host) ConnectAddrStrings(ctx context.Context, id string, addrs []stri
 
 // SendMsg 发送消息
 func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error) {
+	var status int
+	st := time.Now()
+	defer func() {
+		//  标记成功失败
+		hst.optmizer.Feedback(counter.InRow{pid.Pretty(), status})
+
+		// 标记延迟
+		if time.Now().Sub(st).Milliseconds() > 300 {
+			hst.optmizer.Feedback(counter.InRow{pid.Pretty(), 2})
+		} else if time.Now().Sub(st).Milliseconds() > 1000 {
+			hst.optmizer.Feedback(counter.InRow{pid.Pretty(), 3})
+		} else if time.Now().Sub(st).Milliseconds() > 3000 {
+			hst.optmizer.Feedback(counter.InRow{pid.Pretty(), 4})
+		}
+	}()
+
 	clt, ok := hst.ClientStore().GetClient(pid)
 	if !ok {
 		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
 	}
-	res, err := clt.SendMsg(ctx, mid, msg)
 
-	// 反馈给opt
+	res, err := clt.SendMsg(ctx, mid, msg)
 	if err != nil {
-		hst.optmizer.Feedback(counter.InRow{pid.Pretty(), 1})
+		status = 1
 	} else {
-		hst.optmizer.Feedback(counter.InRow{pid.Pretty(), 0})
+		status = 0
 	}
 	return res, err
 }
