@@ -8,6 +8,8 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"net/rpc"
+	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -66,6 +68,24 @@ func NewHost(options ...option.Option) (*host, error) {
 		return source
 	}
 	go hst.optmizer.Run(context.Background())
+
+	// 打印计数器
+	go func() {
+		for {
+			<-time.After(time.Minute)
+			logpath := path.Join(path.Dir(os.Args[0]), "opt.log")
+			fl, err := os.OpenFile(logpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+			if err != nil {
+				continue
+			}
+
+			hst.optmizer.Lock()
+			defer hst.optmizer.Unlock()
+			for k, v := range hst.optmizer.NodeCountTable {
+				fmt.Fprintf(fl, "%s,%d,%d,%d,%d,%d", k, v[0], v[1], v[2], v[3], v[4])
+			}
+		}
+	}()
 
 	hst.cfg = config.NewConfig()
 
@@ -281,6 +301,9 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 		} else if time.Now().Sub(st).Milliseconds() > 3000 {
 			hst.optmizer.Feedback(counter.InRow{pid.Pretty(), 4})
 		}
+
+		// 调用计次
+		hst.optmizer.Feedback(counter.InRow{pid.Pretty(), 5})
 	}()
 
 	clt, ok := hst.ClientStore().GetClient(pid)
