@@ -1,10 +1,12 @@
 package host
 
 import (
+	"container/list"
 	"context"
 	"fmt"
 	counter "github.com/yottachain/NodeOptimization/Counter"
 	"log"
+	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
 	"net/rpc"
@@ -26,6 +28,10 @@ import (
 	"github.com/yottachain/YTHost/peerInfo"
 	"github.com/yottachain/YTHost/service"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 //type Host interface {
 //	Accept()
@@ -322,4 +328,43 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 
 func (hst *host) Optmizer() *optimizer.Optmizer {
 	return hst.optmizer
+}
+
+func (hst *host) GetNodes(ids []string, optNum int, randNum int) []string {
+	var res []string
+
+	nodes := list.New()
+	optlist := hst.optmizer.Get2()
+
+	for i := 0; i < optNum; i++ {
+		nodes.PushBack(optlist[i])
+	}
+
+	// 插入随机节点
+	for i := 0; i < randNum; i++ {
+		node := optlist[optNum+rand.Intn(len(optlist)-1-optNum)]
+		pos := rand.Intn(nodes.Len())
+
+		curr := nodes.Front()
+		for j := 0; j < pos; j++ {
+			curr = curr.Next()
+		}
+		nodes.InsertAfter(node, curr)
+	}
+
+	// list转数组
+	res = make([]string, nodes.Len())
+	curr := nodes.Front()
+	i := 0
+	for {
+		res[i] = curr.Value.(string)
+
+		curr = curr.Next()
+		if curr == nil {
+			break
+		}
+		i = i + 1
+	}
+
+	return res
 }

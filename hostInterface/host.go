@@ -26,4 +26,5 @@ type Host interface {
 	ClientStore() *clientStore.ClientStore
 	SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error)
 	Optmizer() *optimizer.Optmizer
+	GetNodes(ids []string, optNum int, randNum int) []string
 }
