@@ -48,14 +48,14 @@ type host struct {
 	srv      *rpc.Server
 	service.HandlerMap
 	clientStore *clientStore.ClientStore
-	optmizer    *optimizer.Optmizer
+	ow          *optWarp
 }
 
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
-	hst.optmizer = optimizer.New()
+	hst.ow = &optWarp{optimizer.New(), nil, time.Time{}, sync.RWMutex{}}
 
-	go hst.optmizer.Run(context.Background())
+	go hst.ow.Run(context.Background())
 
 	// 打印计数器
 	go func() {
@@ -67,9 +67,9 @@ func NewHost(options ...option.Option) (*host, error) {
 				continue
 			}
 
-			hst.optmizer.Lock()
-			defer hst.optmizer.Unlock()
-			for k, v := range hst.optmizer.NodeCountTable {
+			hst.ow.Optmizer.Lock()
+			defer hst.ow.Optmizer.Unlock()
+			for k, v := range hst.ow.Optmizer.NodeCountTable {
 				fmt.Fprintf(fl, "%s,%d,%d,%d,%d,%d", k, v[0], v[1], v[2], v[3], v[4])
 			}
 		}
@@ -278,7 +278,7 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 	var status int
 	defer func() {
 		//  标记成功失败
-		hst.optmizer.Feedback(counter.InRow{pid.Pretty(), status})
+		hst.ow.Feedback(counter.InRow{pid.Pretty(), status})
 	}()
 
 	clt, ok := hst.ClientStore().GetClient(pid)
@@ -295,15 +295,29 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 	return res, err
 }
 
-func (hst *host) Optmizer() *optimizer.Optmizer {
-	return hst.optmizer
+type optWarp struct {
+	*optimizer.Optmizer
+	nodes      []string
+	preGetTime time.Time
+	mtx        sync.RWMutex
 }
 
-func (hst *host) GetNodes(ids []string, optNum int, randNum int) []string {
+func (ow *optWarp) GetNodes(ids []string, optNum int, randNum int) []string {
+	if time.Now().Sub(ow.preGetTime) > time.Second {
+		ow.nodes = ow.getNodes(ids, optNum, randNum)
+		ow.mtx.Lock()
+		ow.preGetTime = time.Now()
+		ow.mtx.Unlock()
+	}
+	return ow.nodes
+}
+
+func (ow *optWarp) getNodes(ids []string, optNum int, randNum int) []string {
+
 	var res []string
 
 	nodes := list.New()
-	optlist := hst.optmizer.Get2(NodeIds...)
+	optlist := ow.Get2(NodeIds...)
 
 	for i := 0; i < optNum; i++ {
 		nodes.PushBack(optlist[i])
