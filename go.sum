@@ -101,6 +101,8 @@ github.com/yottachain/NodeOptimization v0.0.0-20200424102701-809279960ad6 h1:N9q
 github.com/yottachain/NodeOptimization v0.0.0-20200424102701-809279960ad6/go.mod h1:hvnBaYc8ry78c2ifyZfkRpLqEh0LjRUZgmFKUGERE14=
 github.com/yottachain/NodeOptimization v0.0.0-20200424105941-19726d850e89 h1:7Ls2imxHYiuIdMd0FelgHc+3BxvLK6ZKRAQ8Pq+CAaw=
 github.com/yottachain/NodeOptimization v0.0.0-20200424105941-19726d850e89/go.mod h1:hvnBaYc8ry78c2ifyZfkRpLqEh0LjRUZgmFKUGERE14=
+github.com/yottachain/NodeOptimization v0.0.0-20200424114748-ee212bc77855 h1:TerijqQPB9tQUKHsj9sraCT0VcbqrxaLx9LwkgtJfwA=
+github.com/yottachain/NodeOptimization v0.0.0-20200424114748-ee212bc77855/go.mod h1:hvnBaYc8ry78c2ifyZfkRpLqEh0LjRUZgmFKUGERE14=
 go.opencensus.io v0.22.2/go.mod h1:yxeiOL68Rb0Xd1ddK5vPZ/oVn4vY4Ynel7k9FzqtOIw=
 golang.org/x/crypto v0.0.0-20170930174604-9419663f5a44/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20180904163835-0709b304e793/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=

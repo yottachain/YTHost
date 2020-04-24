@@ -303,9 +303,9 @@ type optWarp struct {
 func (ow *optWarp) GetNodes(ids []string, optNum int, randNum int) []string {
 	if time.Now().Sub(ow.preGetTime) > time.Second {
 		ow.nodes = ow.getNodes(ids, optNum, randNum)
-		//ow.mtx.Lock()
+		ow.mtx.Lock()
 		ow.preGetTime = time.Now()
-		//ow.mtx.Unlock()
+		ow.mtx.Unlock()
 	}
 	return ow.nodes
 }
