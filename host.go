@@ -353,6 +353,6 @@ func (ow *optWarp) getNodes(ids []string, optNum int, randNum int) []string {
 	return res
 }
 
-func (hst *host) getNodes(ids []string, optNum int, randNum int) []string {
-	return hst.ow.getNodes(ids, optNum, randNum)
+func (hst *host) GetNodes(ids []string, optNum int, randNum int) []string {
+	return hst.ow.GetNodes(ids, optNum, randNum)
 }
