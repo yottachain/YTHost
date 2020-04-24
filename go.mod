@@ -8,6 +8,6 @@ require (
 	github.com/mr-tron/base58 v1.1.3
 	github.com/multiformats/go-multiaddr v0.2.0
 	github.com/multiformats/go-multiaddr-net v0.1.2
-	github.com/yottachain/NodeOptimization v0.0.0-20200422090703-df449a81e3df
+	github.com/yottachain/NodeOptimization v0.0.0-20200424102701-809279960ad6
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 )

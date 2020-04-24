@@ -67,9 +67,7 @@ func NewHost(options ...option.Option) (*host, error) {
 				continue
 			}
 
-			hst.ow.Optmizer.Lock()
-			defer hst.ow.Optmizer.Unlock()
-			for k, v := range hst.ow.Optmizer.NodeCountTable {
+			for k, v := range hst.ow.Optmizer.CurrentCount(NodeIds...) {
 				fmt.Fprintf(fl, "%s,%d,%d,%d,%d,%d", k, v[0], v[1], v[2], v[3], v[4])
 			}
 		}
@@ -305,9 +303,9 @@ type optWarp struct {
 func (ow *optWarp) GetNodes(ids []string, optNum int, randNum int) []string {
 	if time.Now().Sub(ow.preGetTime) > time.Second {
 		ow.nodes = ow.getNodes(ids, optNum, randNum)
-		ow.mtx.Lock()
+		//ow.mtx.Lock()
 		ow.preGetTime = time.Now()
-		ow.mtx.Unlock()
+		//ow.mtx.Unlock()
 	}
 	return ow.nodes
 }
@@ -317,7 +315,7 @@ func (ow *optWarp) getNodes(ids []string, optNum int, randNum int) []string {
 	var res []string
 
 	nodes := list.New()
-	optlist := ow.Get2(NodeIds...)
+	optlist := ow.Optmizer.Get2(NodeIds...)
 
 	for i := 0; i < optNum; i++ {
 		nodes.PushBack(optlist[i])

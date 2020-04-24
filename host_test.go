@@ -367,6 +367,11 @@ func TestDnsMa(t *testing.T) {
 	}
 }
 
+func TestOpt(t *testing.T) {
+	h1 := GetRandomHost()
+	t.Log(h1.GetNodes(nil, 300, 50))
+}
+
 ////测试多连接
 //func TestMutlConn(t *testing.T) {
 //	mastr := fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 9000)
