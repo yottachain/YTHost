@@ -352,3 +352,7 @@ func (ow *optWarp) getNodes(ids []string, optNum int, randNum int) []string {
 	fmt.Println("返回节点", len(res))
 	return res
 }
+
+func (hst *host) getNodes(ids []string, optNum int, randNum int) []string {
+	return hst.ow.getNodes(ids, optNum, randNum)
+}
