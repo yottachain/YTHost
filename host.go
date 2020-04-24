@@ -303,7 +303,7 @@ func (hst *host) GetNodes(ids []string, optNum int, randNum int) []string {
 	var res []string
 
 	nodes := list.New()
-	optlist := hst.optmizer.Get2()
+	optlist := hst.optmizer.Get2(NodeIds...)
 
 	for i := 0; i < optNum; i++ {
 		nodes.PushBack(optlist[i])
@@ -335,5 +335,6 @@ func (hst *host) GetNodes(ids []string, optNum int, randNum int) []string {
 		i = i + 1
 	}
 
+	fmt.Println("返回节点", len(res))
 	return res
 }

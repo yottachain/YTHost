@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
-	optimizer "github.com/yottachain/NodeOptimization"
 	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/clientStore"
 	"github.com/yottachain/YTHost/config"
@@ -25,6 +24,5 @@ type Host interface {
 	ConnectAddrStrings(ctx context.Context, id string, addrs []string) (*client.YTHostClient, error)
 	ClientStore() *clientStore.ClientStore
 	SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error)
-	Optmizer() *optimizer.Optmizer
 	GetNodes(ids []string, optNum int, randNum int) []string
 }
