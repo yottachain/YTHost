@@ -189,9 +189,15 @@ func (hst *host) Addrs() []multiaddr.Multiaddr {
 
 // Connect 连接远程节点
 func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
+	var status int
+	defer func() {
+		//  标记成功失败
+		hst.ow.Feedback(counter.InRow{pid.Pretty(), status})
+	}()
 
 	conn, err := hst.connect(ctx, pid, mas)
 	if err != nil {
+		status = 1
 		return nil, err
 	}
 
@@ -201,6 +207,7 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		hst.Addrs(),
 	}, hst.cfg.Privkey.GetPublic())
 	if err != nil {
+		status = 1
 		return nil, err
 	}
 	return ytclt, nil
@@ -273,11 +280,6 @@ func (hst *host) ConnectAddrStrings(ctx context.Context, id string, addrs []stri
 
 // SendMsg 发送消息
 func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error) {
-	var status int
-	defer func() {
-		//  标记成功失败
-		hst.ow.Feedback(counter.InRow{pid.Pretty(), status})
-	}()
 
 	clt, ok := hst.ClientStore().GetClient(pid)
 	if !ok {
@@ -285,11 +287,6 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 	}
 
 	res, err := clt.SendMsg(ctx, mid, msg)
-	if err != nil {
-		status = 1
-	} else {
-		status = 0
-	}
 	return res, err
 }
 
