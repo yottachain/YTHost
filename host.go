@@ -276,7 +276,8 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 	var status int
 	defer func() {
 		//  标记成功失败
-		hst.ow.Feedback(counter.InRow{pid.Pretty(), status})
+		//hst.ow.Feedback(counter.InRow{pid.Pretty(), status})
+		hst.ow.Feedback(counter.InRow{peer.Encode(pid), status})
 	}()
 
 	clt, ok := hst.ClientStore().GetClient(pid)
