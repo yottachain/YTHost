@@ -312,7 +312,8 @@ func (ow *optWarp) getNodes(ids []string, optNum int, randNum int) []string {
 	var res []string
 
 	nodes := list.New()
-	optlist := ow.Optmizer.Get2(NodeIds...)
+	//optlist := ow.Optmizer.Get2(NodeIds...)
+	optlist := ow.Optmizer.Get2(ids...)
 
 	for i := 0; i < optNum; i++ {
 		nodes.PushBack(optlist[i])
