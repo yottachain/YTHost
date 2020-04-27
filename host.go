@@ -385,5 +385,6 @@ func optGetScore1(row counter.NodeCountRow) int64 {
 	if (row[0]+row[1])==0 {
 		return 500
 	}
-	return 500 + row[2]
+
+	return 30000 - row[2] + 500
 }
