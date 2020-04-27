@@ -54,7 +54,7 @@ type host struct {
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
 	hst.ow = &optWarp{optimizer.New(), nil, time.Time{}, sync.RWMutex{}}
-	hst.ow.Optmizer.GetScore = optGetScore
+	hst.ow.Optmizer.GetScore = optGetScore1
 
 	go hst.ow.Run(context.Background())
 
@@ -191,12 +191,15 @@ func (hst *host) Addrs() []multiaddr.Multiaddr {
 // Connect 连接远程节点
 func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
 	var status int
+	var interval int64
 	defer func() {
 		//  标记成功失败
-		hst.ow.Feedback(counter.InRow{pid.Pretty(), status})
+		hst.ow.Feedback(counter.InRow{pid.Pretty(), status, interval})
 	}()
 
+	startTime := time.Now()
 	conn, err := hst.connect(ctx, pid, mas)
+	interval = time.Now().Sub(startTime).Milliseconds()
 	if err != nil {
 		status = 1
 		return nil, err
@@ -287,7 +290,22 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
 	}
 
+	var status int
+	var interval int64
+	defer func() {
+		//  标记成功失败
+		hst.ow.Feedback(counter.InRow{pid.Pretty(), status, interval})
+	}()
+
+	startTime := time.Now()
 	res, err := clt.SendMsg(ctx, mid, msg)
+	interval = time.Now().Sub(startTime).Milliseconds()
+	if err != nil {
+		status = 1
+		return nil, err
+	}
+
+	//res, err := clt.SendMsg(ctx, mid, msg)
 	return res, err
 }
 
@@ -361,4 +379,11 @@ func optGetScore(row counter.NodeCountRow) int64 {
 	total := row[0] + row[1]
 	rate := float32(row[0]) / float32(total)
 	return 500 + int64(1000*rate)
+}
+
+func optGetScore1(row counter.NodeCountRow) int64 {
+	if (row[0]+row[1])==0 {
+		return 500
+	}
+	return 500 + row[2]
 }
