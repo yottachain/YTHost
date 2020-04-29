@@ -54,7 +54,7 @@ type host struct {
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
 	hst.ow = &optWarp{optimizer.New(), nil, time.Time{}, sync.RWMutex{}}
-	hst.ow.Optmizer.GetScore = optGetScore1
+	hst.ow.Optmizer.GetScore = optGetScore
 
 	go hst.ow.Run(context.Background())
 
