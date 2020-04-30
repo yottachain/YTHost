@@ -54,7 +54,7 @@ type host struct {
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
 	hst.ow = &optWarp{optimizer.New(), nil, time.Time{}, sync.RWMutex{}}
-	hst.ow.Optmizer.GetScore = optGetScore
+	//hst.ow.Optmizer.GetScore = optGetScore
 
 	go hst.ow.Run(context.Background())
 
@@ -69,7 +69,7 @@ func NewHost(options ...option.Option) (*host, error) {
 			}
 
 			for k, v := range hst.ow.Optmizer.CurrentCount(NodeIds...) {
-				fmt.Fprintf(fl, "%s,%d,%d,%d,%d,%d", k, v[0], v[1], v[2], v[3], v[4])
+				fmt.Fprintf(fl, "%s,%d,%d,%d,%d", k, v.SuccTimes, v.FailTimes, v.AvgDelayTimes, v.Score)
 			}
 		}
 	}()
@@ -372,19 +372,19 @@ func (hst *host) GetNodes(ids []string, optNum int, randNum int) []string {
 	return hst.ow.GetNodes(ids, optNum, randNum)
 }
 
-func optGetScore(row counter.NodeCountRow) int64 {
-	if (row[0]+row[1])==0 {
-		return 500
-	}
-	total := row[0] + row[1]
-	rate := float32(row[0]) / float32(total)
-	return 500 + int64(1000*rate)
-}
-
-func optGetScore1(row counter.NodeCountRow) int64 {
-	if (row[0]+row[1])==0 {
-		return optGetScore(row)
-	}
-
-	return 30000 - row[2] + optGetScore(row)
-}
+//func optGetScore(row counter.NodeCountRow) int64 {
+//	if (row[0]+row[1])==0 {
+//		return 500
+//	}
+//	total := row[0] + row[1]
+//	rate := float32(row[0]) / float32(total)
+//	return 500 + int64(1000*rate)
+//}
+//
+//func optGetScore1(row counter.NodeCountRow) int64 {
+//	if (row[0]+row[1])==0 {
+//		return optGetScore(row)
+//	}
+//
+//	return 30000 - row[2] + optGetScore(row)
+//}
