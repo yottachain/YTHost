@@ -54,7 +54,7 @@ type host struct {
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
 	hst.ow = &optWarp{optimizer.New(), nil, time.Time{}, sync.RWMutex{}}
-	//hst.ow.Optmizer.GetScore = optGetScore
+	hst.ow.Optmizer.GetScore = optGetScore
 
 	go hst.ow.Run(context.Background())
 
@@ -372,14 +372,14 @@ func (hst *host) GetNodes(ids []string, optNum int, randNum int) []string {
 	return hst.ow.GetNodes(ids, optNum, randNum)
 }
 
-//func optGetScore(row counter.NodeCountRow) int64 {
-//	if (row[0]+row[1])==0 {
-//		return 500
-//	}
-//	total := row[0] + row[1]
-//	rate := float32(row[0]) / float32(total)
-//	return 500 + int64(1000*rate)
-//}
+func optGetScore(row counter.NodeCountRow) int64 {
+	if (row.SuccTimes + row.FailTimes)==0 {
+		return 500
+	}
+	total := row.SuccTimes + row.FailTimes
+	rate := float32(row.SuccTimes) / float32(total)
+	return 500 + int64(1000*rate)
+}
 //
 //func optGetScore1(row counter.NodeCountRow) int64 {
 //	if (row[0]+row[1])==0 {
