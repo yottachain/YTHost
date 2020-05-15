@@ -149,3 +149,12 @@ func NewPool(hst hostInterface.Host, peers []*peer.AddrInfo) *ClientPool {
 
 	return &cp
 }
+
+func (cp *ClientPool) Close(id string) {
+	ac, ok := cp.pool.Load(id)
+	if ok {
+		cc := ac.(*clientContainer)
+		cc.YTHostClient.Close()
+		cc.SetStatus(0)
+	}
+}
