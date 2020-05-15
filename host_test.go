@@ -5,7 +5,6 @@ import (
 	ra "crypto/rand"
 	"fmt"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	host "github.com/yottachain/YTHost"
 	"github.com/yottachain/YTHost/clientPool"
@@ -654,12 +653,11 @@ func TestOpt(t *testing.T) {
 //}
 
 func TestClientPool(t *testing.T) {
+	nodelist := host.GetACNodeList()
+
 	hst := GetRandomHost()
 
-	ma, _ := multiaddr.NewMultiaddr("/ip4/117.176.132.212/tcp/30319/p2p/16Uiu2HAmFBB3wr8LXufCAWqZHmcvZcKeQ4ARWN3jcPpPTw5bEoNT")
-	ai, _ := peer.AddrInfoFromP2pAddr(ma)
-
-	cp := clientPool.NewPool(hst, []*peer.AddrInfo{ai})
+	cp := clientPool.NewPool(hst, nodelist)
 	for {
 		<-time.After(time.Second * 1)
 		peers := cp.GetFreeClients()

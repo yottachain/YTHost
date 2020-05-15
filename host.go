@@ -68,7 +68,7 @@ func NewHost(options ...option.Option) (*host, error) {
 				continue
 			}
 
-			for k, v := range hst.ow.Optmizer.CurrentCount(NodeIds...) {
+			for k, v := range hst.ow.Optmizer.CurrentCount() {
 				fmt.Fprintf(fl, "%s,%d,%d,%d,%d", k, v.SuccTimes, v.FailTimes, v.AvgDelayTimes, v.Score)
 			}
 		}
