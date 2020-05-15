@@ -136,6 +136,9 @@ func NewPool(hst hostInterface.Host, peers []*peer.AddrInfo) *ClientPool {
 	}
 
 	for _, peer := range peers {
+		if peer == nil {
+			continue
+		}
 		go cp.connect(peer)
 	}
 

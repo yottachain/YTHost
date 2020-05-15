@@ -655,6 +655,8 @@ func TestOpt(t *testing.T) {
 func TestClientPool(t *testing.T) {
 	nodelist := host.GetACNodeList()
 
+	fmt.Println(nodelist)
+
 	hst := GetRandomHost()
 
 	cp := clientPool.NewPool(hst, nodelist)
