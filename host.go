@@ -54,6 +54,7 @@ type host struct {
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
 	hst.ow = &optWarp{optimizer.New(), nil, time.Time{}, sync.RWMutex{}}
+	hst.ow.Optmizer.GetScore = optGetScore
 
 	go hst.ow.Run(context.Background())
 
@@ -68,7 +69,7 @@ func NewHost(options ...option.Option) (*host, error) {
 			}
 
 			for k, v := range hst.ow.Optmizer.CurrentCount(NodeIds...) {
-				fmt.Fprintf(fl, "%s,%d,%d,%d,%d,%d", k, v[0], v[1], v[2], v[3], v[4])
+				fmt.Fprintf(fl, "%s,%d,%d,%d,%d", k, v.SuccTimes, v.FailTimes, v.AvgDelayTimes, v.Score)
 			}
 		}
 	}()
@@ -190,12 +191,15 @@ func (hst *host) Addrs() []multiaddr.Multiaddr {
 // Connect 连接远程节点
 func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
 	var status int
+	var interval int64
 	defer func() {
 		//  标记成功失败
-		hst.ow.Feedback(counter.InRow{pid.Pretty(), status})
+		hst.ow.Feedback(counter.InRow{pid.Pretty(), status, interval})
 	}()
 
+	startTime := time.Now()
 	conn, err := hst.connect(ctx, pid, mas)
+	interval = time.Now().Sub(startTime).Milliseconds()
 	if err != nil {
 		status = 1
 		return nil, err
@@ -286,7 +290,22 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
 	}
 
+	var status int
+	var interval int64
+	defer func() {
+		//  标记成功失败
+		hst.ow.Feedback(counter.InRow{pid.Pretty(), status, interval})
+	}()
+
+	startTime := time.Now()
 	res, err := clt.SendMsg(ctx, mid, msg)
+	interval = time.Now().Sub(startTime).Milliseconds()
+	if err != nil {
+		status = 1
+		return nil, err
+	}
+
+	//res, err := clt.SendMsg(ctx, mid, msg)
 	return res, err
 }
 
@@ -312,8 +331,8 @@ func (ow *optWarp) getNodes(ids []string, optNum int, randNum int) []string {
 	var res []string
 
 	nodes := list.New()
-	//optlist := ow.Optmizer.Get2(NodeIds...)
-	optlist := ow.Optmizer.Get2(ids...)
+	optlist := ow.Optmizer.Get2(NodeIds...)
+	//optlist := ow.Optmizer.Get2(ids...)
 
 	for i := 0; i < optNum; i++ {
 		nodes.PushBack(optlist[i])
@@ -352,3 +371,20 @@ func (ow *optWarp) getNodes(ids []string, optNum int, randNum int) []string {
 func (hst *host) GetNodes(ids []string, optNum int, randNum int) []string {
 	return hst.ow.GetNodes(ids, optNum, randNum)
 }
+
+func optGetScore(row counter.NodeCountRow) int64 {
+	if (row.SuccTimes + row.FailTimes)==0 {
+		return 500
+	}
+	total := row.SuccTimes + row.FailTimes
+	rate := float32(row.SuccTimes) / float32(total)
+	return 500 + int64(1000*rate)
+}
+//
+//func optGetScore1(row counter.NodeCountRow) int64 {
+//	if (row[0]+row[1])==0 {
+//		return optGetScore(row)
+//	}
+//
+//	return 30000 - row[2] + optGetScore(row)
+//}
