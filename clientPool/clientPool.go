@@ -13,100 +13,126 @@ import (
 type clientContainer struct {
 	*client.YTHostClient
 	Status int
-	info   peer.AddrInfo
+	sync.RWMutex
+}
+
+func (cc *clientContainer) GetStatus() int {
+	cc.RLock()
+	defer cc.RUnlock()
+
+	return cc.Status
+}
+
+func (cc *clientContainer) SetStatus(s int) {
+	cc.Lock()
+	defer cc.Unlock()
+
+	cc.Status = s
+}
+func (cc *clientContainer) SetClient(clt *client.YTHostClient) {
+	cc.Lock()
+	defer cc.Unlock()
+
+	cc.YTHostClient = clt
 }
 
 type ClientPool struct {
 	host     hostInterface.Host
-	pool     map[peer.ID]*clientContainer
+	pool     sync.Map
 	Interval time.Duration
-	sync.Mutex
+	peers    []*peer.AddrInfo
 }
 
-func (cp *ClientPool) connect(info peer.AddrInfo) {
-	var cc clientContainer
+func (cp *ClientPool) connect(info *peer.AddrInfo) {
+	ac, _ := cp.pool.LoadOrStore(info.ID.Pretty(), &clientContainer{})
+	cc := ac.(*clientContainer)
 
 	ctx, cancel := context.WithTimeout(context.Background(), cp.Interval*2)
 	defer cancel()
 
 	clt, err := cp.host.ClientStore().Get(ctx, info.ID, info.Addrs)
 	if err != nil {
-		cc.Status = 0
+		cc.SetStatus(0)
 	} else {
-		cc.Status = 1
+		cc.SetStatus(1)
 	}
 
-	cc.YTHostClient = clt
-	cc.info = info
-
-	cp.pool[info.ID] = &cc
+	cc.SetClient(clt)
 }
 
-func (cp *ClientPool) GetFreeClients() []peer.ID {
-	cp.Lock()
-	defer cp.Unlock()
+func (cp *ClientPool) GetFreeClients() []string {
 
-	var free []peer.ID
+	var free []string
 
-	for k, v := range cp.pool {
-		if v.Status == 1 {
-			free = append(free, k)
+	for _, v := range cp.peers {
+		ac, ok := cp.pool.Load(v.ID.Pretty())
+		if ok {
+			cc := ac.(*clientContainer)
+			if cc.GetStatus() == 1 || cc.GetStatus() == 2 {
+				free = append(free, v.ID.Pretty())
+			}
 		}
 	}
 
 	return free
 }
 
-func (cp *ClientPool) Get(id peer.ID) (*client.YTHostClient, error) {
-	cp.Lock()
-	defer cp.Lock()
+func (cp *ClientPool) Get(id string) (*client.YTHostClient, error) {
+	ac, ok := cp.pool.Load(id)
+	if !ok {
+		return nil, fmt.Errorf("not client")
+	}
+	cc := ac.(*clientContainer)
 
-	if item, ok := cp.pool[id]; !ok || item.Status != 1 {
-		return nil, fmt.Errorf("cliet not available")
+	if cc.Status != 1 && cc.Status != 2 {
+		return nil, fmt.Errorf("cliet not availablc")
 	} else {
-		item.Status = 2
-		cp.pool[id] = item
-
-		return item.YTHostClient, nil
+		cc.SetStatus(2)
+		return cc.YTHostClient, nil
 	}
 }
 
-func (cp *ClientPool) Put(id peer.ID) {
-	cp.Lock()
-	defer cp.Lock()
-
-	item, ok := cp.pool[id]
+func (cp *ClientPool) Put(id string) {
+	ac, ok := cp.pool.Load(id)
 	if ok {
-		item.Status = 1
-		cp.pool[id] = item
-	}
-}
-
-func (cp *ClientPool) Check() {
-	cp.Lock()
-	defer cp.Unlock()
-
-	for _, v := range cp.pool {
-		if v.Status == 1 {
-			go func() {
-				ctx, _ := context.WithTimeout(context.Background(), cp.Interval)
-				if !v.YTHostClient.Ping(ctx) {
-					v.Status = 0
-				}
-			}()
-		} else if v.Status == 0 {
-			v.Status = 3 // 正在连接中
-			go cp.connect(v.info)
+		cc := ac.(*clientContainer)
+		if ok {
+			cc.SetStatus(1)
 		}
 	}
 }
 
-func NewPool(hst hostInterface.Host, peers []peer.AddrInfo) *ClientPool {
+func (cp *ClientPool) Check() {
+
+	for _, v := range cp.peers {
+		ac, ok := cp.pool.Load(v.ID.Pretty())
+		if ok {
+			cc := ac.(*clientContainer)
+			if cc.GetStatus() == 1 {
+				go func() {
+					// 正在检测
+					cc.Status = 4
+					ctx, _ := context.WithTimeout(context.Background(), cp.Interval)
+					if !cc.YTHostClient.Ping(ctx) {
+						cc.Status = 0
+					} else {
+						cc.Status = 1
+					}
+				}()
+			} else if cc.GetStatus() == 0 {
+				cc.Status = 3 // 正在连接中
+				go cp.connect(v)
+			}
+		}
+	}
+}
+
+func NewPool(hst hostInterface.Host, peers []*peer.AddrInfo) *ClientPool {
 	var cp = ClientPool{
 		host:     hst,
-		pool:     make(map[peer.ID]*clientContainer),
+		pool:     sync.Map{},
 		Interval: time.Second * 3,
-		Mutex:    sync.Mutex{},
+		peers:    peers,
 	}
 
 	for _, peer := range peers {
@@ -117,7 +143,7 @@ func NewPool(hst hostInterface.Host, peers []peer.AddrInfo) *ClientPool {
 	go func() {
 		for {
 			go cp.Check()
-			<-time.After(cp.Interval)
+			<-time.After(cp.Interval + time.Millisecond*500)
 		}
 	}()
 

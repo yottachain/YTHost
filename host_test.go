@@ -5,8 +5,10 @@ import (
 	ra "crypto/rand"
 	"fmt"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	host "github.com/yottachain/YTHost"
+	"github.com/yottachain/YTHost/clientPool"
 	. "github.com/yottachain/YTHost/hostInterface"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/service"
@@ -650,3 +652,24 @@ func TestOpt(t *testing.T) {
 //		time.Sleep(time.Second * 1)
 //	}
 //}
+
+func TestClientPool(t *testing.T) {
+	hst := GetRandomHost()
+
+	ma, _ := multiaddr.NewMultiaddr("/ip4/117.176.132.212/tcp/30319/p2p/16Uiu2HAmFBB3wr8LXufCAWqZHmcvZcKeQ4ARWN3jcPpPTw5bEoNT")
+	ai, _ := peer.AddrInfoFromP2pAddr(ma)
+
+	cp := clientPool.NewPool(hst, []*peer.AddrInfo{ai})
+	for {
+		<-time.After(time.Second * 1)
+		peers := cp.GetFreeClients()
+		fmt.Println(peers)
+		if len(peers) != 0 {
+			clt, err := cp.Get("16Uiu2HAmFBB3wr8LXufCAWqZHmcvZcKeQ4ARWN3jcPpPTw5bEoNT")
+			fmt.Println(err)
+			fmt.Println(clt.Ping(context.Background()))
+			cp.Put(peers[0])
+		}
+
+	}
+}

@@ -331,7 +331,7 @@ func (ow *optWarp) getNodes(ids []string, optNum int, randNum int) []string {
 	var res []string
 
 	nodes := list.New()
-	optlist := ow.Optmizer.Get2(NodeIds...)
+	optlist := ow.Optmizer.Get2(ids...)
 	//optlist := ow.Optmizer.Get2(ids...)
 
 	for i := 0; i < optNum; i++ {
@@ -373,13 +373,14 @@ func (hst *host) GetNodes(ids []string, optNum int, randNum int) []string {
 }
 
 func optGetScore(row counter.NodeCountRow) int64 {
-	if (row.SuccTimes + row.FailTimes)==0 {
+	if (row.SuccTimes + row.FailTimes) == 0 {
 		return 500
 	}
 	total := row.SuccTimes + row.FailTimes
 	rate := float32(row.SuccTimes) / float32(total)
 	return 500 + int64(1000*rate)
 }
+
 //
 //func optGetScore1(row counter.NodeCountRow) int64 {
 //	if (row[0]+row[1])==0 {
