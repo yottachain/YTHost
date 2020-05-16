@@ -109,7 +109,7 @@ func (cp *ClientPool) Check() {
 		if ok {
 			cc := ac.(*clientContainer)
 			if cc.GetStatus() == 1 {
-				go func() {
+				go func(cc *clientContainer) {
 					// 正在检测
 					cc.Status = 4
 					ctx, _ := context.WithTimeout(context.Background(), cp.Interval)
@@ -118,7 +118,7 @@ func (cp *ClientPool) Check() {
 					} else {
 						cc.Status = 1
 					}
-				}()
+				}(cc)
 			} else if cc.GetStatus() == 0 {
 				cc.Status = 3 // 正在连接中
 				go cp.connect(v)

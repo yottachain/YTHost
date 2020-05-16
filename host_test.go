@@ -667,7 +667,9 @@ func TestClientPool(t *testing.T) {
 		if len(peers) != 0 {
 			clt, err := cp.Get("16Uiu2HAmFBB3wr8LXufCAWqZHmcvZcKeQ4ARWN3jcPpPTw5bEoNT")
 			fmt.Println(err)
-			fmt.Println(clt.Ping(context.Background()))
+			if err == nil {
+				fmt.Println(clt.Ping(context.Background()))
+			}
 			cp.Put(peers[0])
 		}
 

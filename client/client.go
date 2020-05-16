@@ -81,9 +81,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	go func() {
 		var res service.Response
-
 		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey}
-
 		if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res); err != nil {
 			select {
 			case errChan <- err:
