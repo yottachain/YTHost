@@ -106,8 +106,8 @@ type NodeInfo2 struct {
 }
 
 func GetACNodeList() []*peer.AddrInfo {
-	var ns []NodeInfo = make([]NodeInfo, 0)
-	var ns2 []NodeInfo2 = make([]NodeInfo2, 0)
+	var ns = make([]NodeInfo, 0)
+	var ns2 = make([]NodeInfo2, 0)
 
 	resp, err := http.Get("http://39.105.184.162:8082/active_nodes")
 	if err != nil {
@@ -134,7 +134,8 @@ func GetACNodeList() []*peer.AddrInfo {
 	for _, v := range ns {
 		_res := &peer.AddrInfo{}
 		var id peer.ID
-		err := id.UnmarshalText([]byte(v.ID))
+		id, err := peer.Decode(v.ID)
+		//err := id.UnmarshalText([]byte(v.ID))
 		if err != nil {
 			continue
 		}

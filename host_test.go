@@ -668,6 +668,7 @@ func TestClientPool(t *testing.T) {
 				fmt.Println(clt.Ping(context.Background()))
 			}
 			//cp.Put(peers[0])
+
 		}
 
 	}
