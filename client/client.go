@@ -110,6 +110,9 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 }
 
 func (yc *YTHostClient) Ping(ctx context.Context) bool {
+	if yc == nil {
+		return false
+	}
 
 	successChan := make(chan struct{})
 	errorChan := make(chan struct{})

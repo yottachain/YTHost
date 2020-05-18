@@ -655,20 +655,19 @@ func TestOpt(t *testing.T) {
 func TestClientPool(t *testing.T) {
 	nodelist := host.GetACNodeList()
 
-	fmt.Println(nodelist)
-
 	hst := GetRandomHost()
 
 	cp := clientPool.NewPool(hst, nodelist)
 	for {
 		<-time.After(time.Second * 1)
 		peers := cp.GetFreeClients()
-		fmt.Println(peers)
 		if len(peers) != 0 {
-			clt, err := cp.Get("16Uiu2HAmFBB3wr8LXufCAWqZHmcvZcKeQ4ARWN3jcPpPTw5bEoNT")
+			clt, err := cp.Get("16Uiu2HAm7o24DSgWTrcu5sLCgSkf3D3DQqzpMz9W1Bi7F2Cc4SF6")
 			fmt.Println(err)
-			fmt.Println(clt.Ping(context.Background()))
-			cp.Put(peers[0])
+			if clt != nil {
+				fmt.Println(clt.Ping(context.Background()))
+			}
+			//cp.Put(peers[0])
 		}
 
 	}

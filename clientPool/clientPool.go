@@ -139,6 +139,7 @@ func NewPool(hst hostInterface.Host, peers []*peer.AddrInfo) *ClientPool {
 		if peer == nil {
 			continue
 		}
+		fmt.Println(peer.ID, peer.Addrs)
 		go cp.connect(peer)
 	}
 
