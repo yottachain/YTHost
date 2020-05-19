@@ -88,7 +88,8 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 		pc := atomic.LoadUint32(&yc.printCount)
 
 		if pc%50 == 0 {
-			log.Printf("[YTHOST COUNT] wait %d success %d error %d\n",
+			log.Printf("[YTHOST COUNT] ID %s wait %d success %d error %d\n",
+				yc.RemotePeer().ID,
 				atomic.LoadInt64(&yc.WaitCount),
 				atomic.LoadUint64(&yc.SuccessCount),
 				atomic.LoadUint64(&yc.ErrorCount),
