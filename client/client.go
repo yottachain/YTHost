@@ -7,7 +7,10 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/service"
+	"log"
 	"net/rpc"
+	"os"
+	"sync/atomic"
 )
 
 type YTHostClient struct {
@@ -16,6 +19,10 @@ type YTHostClient struct {
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	isClosed        bool
+	WaitCount       int64
+	SuccessCount    uint64
+	ErrorCount      uint64
+	printCount      uint32
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
@@ -69,11 +76,25 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
+	atomic.AddUint32(&yc.printCount, 1)
+	atomic.AddInt64(&yc.WaitCount, 1)
+	defer atomic.AddInt64(&yc.WaitCount, -1)
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
 
 	defer func() {
+
+		pc := atomic.LoadUint32(&yc.printCount)
+
+		if pc%50 == 0 {
+			log.Printf("[YTHOST COUNT] wait %d success %d error %d\n",
+				atomic.LoadInt64(&yc.WaitCount),
+				atomic.LoadUint64(&yc.SuccessCount),
+				atomic.LoadUint64(&yc.ErrorCount),
+			)
+		}
+
 		if err := recover(); err != nil {
 			errChan <- err.(error)
 		}
@@ -99,10 +120,13 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	select {
 	case <-ctx.Done():
+		atomic.AddUint64(&yc.ErrorCount, 1)
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
+		atomic.AddUint64(&yc.SuccessCount, 1)
 		return rd.Data, nil
 	case err := <-errChan:
+		atomic.AddUint64(&yc.ErrorCount, 1)
 		return nil, err
 	}
 }
@@ -153,4 +177,11 @@ func (yc *YTHostClient) IsClosed() bool {
 func (yc *YTHostClient) SendMsgClose(ctx context.Context, id int32, data []byte) ([]byte, error) {
 	defer yc.Close()
 	return yc.SendMsg(ctx, id, data)
+}
+
+func init() {
+	fl, err := os.OpenFile("ythost.log", os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+	if err == nil {
+		log.SetOutput(fl)
+	}
 }
