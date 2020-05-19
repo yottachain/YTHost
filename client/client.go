@@ -78,7 +78,6 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
 	atomic.AddUint32(&yc.printCount, 1)
 	atomic.AddInt64(&yc.WaitCount, 1)
-	defer atomic.AddInt64(&yc.WaitCount, -1)
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
@@ -125,9 +124,11 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
 		atomic.AddUint64(&yc.SuccessCount, 1)
+		atomic.AddInt64(&yc.WaitCount, -1)
 		return rd.Data, nil
 	case err := <-errChan:
 		atomic.AddUint64(&yc.ErrorCount, 1)
+		atomic.AddInt64(&yc.WaitCount, -1)
 		return nil, err
 	}
 }
