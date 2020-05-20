@@ -7,10 +7,9 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/service"
-	"log"
 	"net/rpc"
-	"os"
-	"sync/atomic"
+	"sync"
+	"time"
 )
 
 type YTHostClient struct {
@@ -19,10 +18,12 @@ type YTHostClient struct {
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	isClosed        bool
-	WaitCount       int64
+	WaitCount       uint64
 	SuccessCount    uint64
 	ErrorCount      uint64
-	printCount      uint32
+	preDuration     time.Duration
+	outTime         time.Duration
+	sync.RWMutex
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
@@ -66,6 +67,7 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 	yc.Client = clt
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
+	yc.outTime = time.Second * 10
 
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
@@ -76,27 +78,31 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
-	atomic.AddUint32(&yc.printCount, 1)
-	atomic.AddInt64(&yc.WaitCount, 1)
+	yc.RLock()
+	if yc.preDuration > 0 && yc.outTime > 0 && yc.WaitCount > 0 {
+		if (time.Duration(yc.WaitCount) * yc.preDuration) > yc.outTime {
+			return nil, fmt.Errorf("client wait queue overflow, len %d", yc.WaitCount)
+		}
+	}
+	yc.RUnlock()
+
+	startTime := time.Now()
+	yc.Lock()
+	yc.WaitCount++
+	yc.Unlock()
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
 
 	defer func() {
+		yc.Lock()
+		yc.WaitCount--
+		yc.preDuration = time.Now().Sub(startTime)
+		yc.Unlock()
 
-		pc := atomic.LoadUint32(&yc.printCount)
-
-		if pc%50 == 0 {
-			log.Printf("[YTHOST COUNT] ID %s wait %d success %d error %d\n",
-				yc.RemotePeer().ID,
-				atomic.LoadInt64(&yc.WaitCount),
-				atomic.LoadUint64(&yc.SuccessCount),
-				atomic.LoadUint64(&yc.ErrorCount),
-			)
-		}
-
-		if err := recover(); err != nil {
-			errChan <- err.(error)
+		err := recover()
+		if err != nil {
+			fmt.Println(err.(error).Error())
 		}
 	}()
 
@@ -120,15 +126,23 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	select {
 	case <-ctx.Done():
-		atomic.AddUint64(&yc.ErrorCount, 1)
+		yc.Lock()
+		yc.outTime = time.Now().Sub(startTime)
+		yc.ErrorCount++
+		yc.Unlock()
+
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
-		atomic.AddUint64(&yc.SuccessCount, 1)
-		atomic.AddInt64(&yc.WaitCount, -1)
+		yc.Lock()
+		yc.SuccessCount++
+		yc.Unlock()
+
 		return rd.Data, nil
 	case err := <-errChan:
-		atomic.AddUint64(&yc.ErrorCount, 1)
-		atomic.AddInt64(&yc.WaitCount, -1)
+		yc.Lock()
+		yc.ErrorCount--
+		yc.Unlock()
+
 		return nil, err
 	}
 }
@@ -181,9 +195,9 @@ func (yc *YTHostClient) SendMsgClose(ctx context.Context, id int32, data []byte)
 	return yc.SendMsg(ctx, id, data)
 }
 
-func init() {
-	fl, err := os.OpenFile("ythost.log", os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
-	if err == nil {
-		log.SetOutput(fl)
-	}
-}
+//func init() {
+//	fl, err := os.OpenFile("ythost.log", os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+//	if err == nil {
+//		log.SetOutput(fl)
+//	}
+//}
