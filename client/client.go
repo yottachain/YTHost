@@ -75,7 +75,8 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	s, _ := stat.DefaultStatTable.GetOrPut(yc.RemotePeer().ID, &stat.ClientStat{Outtime: time.Second * 10})
 
 	s.RLock()
-	if time.Duration(s.Wait)*s.RequestHandleTime > s.Outtime {
+	if (time.Duration(s.Wait) * s.RequestHandleTime) > s.Outtime {
+		s.Refuse++
 		return nil, fmt.Errorf("[ythost] wait queue overflow len %d", s.Wait)
 	}
 	s.RUnlock()

@@ -15,6 +15,7 @@ type ClientStat struct {
 	Wait              uint64
 	Success           uint64
 	Error             uint64
+	Refuse            uint64
 	RequestHandleTime time.Duration
 	Outtime           time.Duration
 	sync.RWMutex
@@ -94,14 +95,14 @@ func OutPut() {
 
 	ids := DefaultStatTable.List()
 
-	fmt.Fprintf(fl, "index,id,wait,success,error,requestTime,outtime\n")
+	fmt.Fprintf(fl, "index,id,wait,success,error,requestTime,outtime,refuse\n")
 	for i, id := range ids {
 		row := DefaultStatTable.GetRow(id)
 		if row != nil {
 			row.RLock()
 			fmt.Fprintf(
 				fl,
-				"%d,%s,%d,%d,%d,%d ms,%d ms\n",
+				"%d,%s,%d,%d,%d,%d ms,%d ms,%d\n",
 				i,
 				id.Pretty(),
 				row.Wait,
@@ -109,6 +110,7 @@ func OutPut() {
 				row.Error,
 				row.RequestHandleTime.Milliseconds(),
 				row.Outtime.Milliseconds(),
+				row.Refuse,
 			)
 			row.RUnlock()
 		}
