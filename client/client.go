@@ -90,7 +90,9 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	defer func() {
 		s.Set(func(cs *stat.ClientStat) {
-			cs.RequestHandleTime = time.Now().Sub(startTime)
+			if id == 0xCB05 {
+				cs.RequestHandleTime = time.Now().Sub(startTime)
+			}
 			cs.Wait--
 		})
 
