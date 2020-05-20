@@ -7,8 +7,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/service"
+	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
-	"sync"
 	"time"
 )
 
@@ -18,12 +18,6 @@ type YTHostClient struct {
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	isClosed        bool
-	WaitCount       uint64
-	SuccessCount    uint64
-	ErrorCount      uint64
-	preDuration     time.Duration
-	outTime         time.Duration
-	sync.RWMutex
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
@@ -67,7 +61,6 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 	yc.Client = clt
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
-	yc.outTime = time.Second * 10
 
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
@@ -78,27 +71,27 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
-	yc.RLock()
-	if yc.preDuration > 0 && yc.outTime > 0 && yc.WaitCount > 0 {
-		if (time.Duration(yc.WaitCount) * yc.preDuration) > yc.outTime {
-			return nil, fmt.Errorf("client wait queue overflow, len %d", yc.WaitCount)
-		}
-	}
-	yc.RUnlock()
-
 	startTime := time.Now()
-	yc.Lock()
-	yc.WaitCount++
-	yc.Unlock()
+	s, _ := stat.DefaultStatTable.GetOrPut(yc.RemotePeer().ID, &stat.ClientStat{Outtime: time.Second * 10})
+
+	s.RLock()
+	if time.Duration(s.Wait)*s.RequestHandleTime > s.Outtime {
+		return nil, fmt.Errorf("[ythost] wait queue overflow len %d", s.Wait)
+	}
+	s.RUnlock()
+
+	s.Set(func(cs *stat.ClientStat) {
+		cs.Wait++
+	})
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
 
 	defer func() {
-		yc.Lock()
-		yc.WaitCount--
-		yc.preDuration = time.Now().Sub(startTime)
-		yc.Unlock()
+		s.Set(func(cs *stat.ClientStat) {
+			cs.RequestHandleTime = time.Now().Sub(startTime)
+			cs.Wait--
+		})
 
 		err := recover()
 		if err != nil {
@@ -126,23 +119,22 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	select {
 	case <-ctx.Done():
-		yc.Lock()
-		yc.outTime = time.Now().Sub(startTime)
-		yc.ErrorCount++
-		yc.Unlock()
+		s.Set(func(cs *stat.ClientStat) {
+			cs.Outtime = time.Now().Sub(startTime)
+		})
 
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
-		yc.Lock()
-		yc.SuccessCount++
-		yc.Unlock()
+		s.Set(func(cs *stat.ClientStat) {
+			cs.Success++
+		})
 
 		return rd.Data, nil
 	case err := <-errChan:
-		yc.Lock()
-		yc.ErrorCount--
-		yc.Unlock()
 
+		s.Set(func(cs *stat.ClientStat) {
+			cs.Error++
+		})
 		return nil, err
 	}
 }

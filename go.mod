@@ -9,5 +9,6 @@ require (
 	github.com/multiformats/go-multiaddr v0.2.0
 	github.com/multiformats/go-multiaddr-net v0.1.2
 	github.com/yottachain/NodeOptimization v0.0.0-20200430113702-71085bdd24e7
+	golang.org/x/exp v0.0.0-20190121172915-509febef88a4
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 )
