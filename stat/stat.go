@@ -83,7 +83,7 @@ func (st *StatTable) GetOrPut(key peer.ID, stat *ClientStat) (*ClientStat, bool)
 		st.Put(key, _stat)
 	}
 
-	return stat, ok
+	return _stat, ok
 }
 
 func OutPut() {
