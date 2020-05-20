@@ -7,7 +7,6 @@ import (
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/multiformats/go-multiaddr"
 	host "github.com/yottachain/YTHost"
-	"github.com/yottachain/YTHost/clientPool"
 	. "github.com/yottachain/YTHost/hostInterface"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/service"
@@ -653,23 +652,39 @@ func TestOpt(t *testing.T) {
 //}
 
 func TestClientPool(t *testing.T) {
-	nodelist := host.GetACNodeList()
+	//nodelist := host.GetACNodeList()
+	//
+	//hst := GetRandomHost()
+	//
+	//cp := clientPool.NewPool(hst, nodelist)
+	//for {
+	//	<-time.After(time.Second * 1)
+	//	peers := cp.GetFreeClients()
+	//	if len(peers) != 0 {
+	//		clt, err := cp.Get("16Uiu2HAm7o24DSgWTrcu5sLCgSkf3D3DQqzpMz9W1Bi7F2Cc4SF6")
+	//		fmt.Println(err)
+	//		if clt != nil {
+	//			fmt.Println(clt.Ping(context.Background()))
+	//		}
+	//		//cp.Put(peers[0])
+	//
+	//	}
+	//
+	//}
+}
 
+func TestStat(t *testing.T) {
 	hst := GetRandomHost()
+	hst.RegisterHandler(0xCB05, func(requestData []byte, head service.Head) (bytes []byte, err error) {
+		return nil, nil
+	})
+	hst2 := GetRandomHost()
 
-	cp := clientPool.NewPool(hst, nodelist)
-	for {
-		<-time.After(time.Second * 1)
-		peers := cp.GetFreeClients()
-		if len(peers) != 0 {
-			clt, err := cp.Get("16Uiu2HAm7o24DSgWTrcu5sLCgSkf3D3DQqzpMz9W1Bi7F2Cc4SF6")
-			fmt.Println(err)
-			if clt != nil {
-				fmt.Println(clt.Ping(context.Background()))
-			}
-			//cp.Put(peers[0])
+	go hst.Accept()
 
-		}
-
+	for i := 0; i < 30; i++ {
+		clt, _ := hst2.ClientStore().Get(context.Background(), hst.Config().ID, hst.Addrs())
+		clt.SendMsg(context.Background(), 0xCB05, []byte{})
+		<-time.After(time.Second)
 	}
 }
