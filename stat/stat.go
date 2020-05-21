@@ -38,13 +38,11 @@ type TotalStat struct {
 type StatTable struct {
 	//table map[peer.ID]*ClientStat
 	total *TotalStat
-	sync.RWMutex
 }
 
 var DefaultStatTable = StatTable{
 	//table:   make(map[peer.ID]*ClientStat),
-	total:   &TotalStat{},
-	RWMutex: sync.RWMutex{},
+	total: &TotalStat{},
 }
 
 //func (st *StatTable) List() []peer.ID {

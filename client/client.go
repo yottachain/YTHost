@@ -7,7 +7,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/service"
-	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
 )
 
@@ -71,9 +70,9 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
 
-	stat.DefaultStatTable.Total().Lock()
-	stat.DefaultStatTable.Total().Current++
-	stat.DefaultStatTable.Total().Unlock()
+	//stat.DefaultStatTable.Total().Lock()
+	//stat.DefaultStatTable.Total().Current++
+	//stat.DefaultStatTable.Total().Unlock()
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
@@ -88,9 +87,9 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	go func() {
 		defer func() {
-			stat.DefaultStatTable.Total().Lock()
-			stat.DefaultStatTable.Total().Current--
-			stat.DefaultStatTable.Total().Unlock()
+			//stat.DefaultStatTable.Total().Lock()
+			//stat.DefaultStatTable.Total().Current--
+			//stat.DefaultStatTable.Total().Unlock()
 		}()
 
 		var res service.Response
@@ -113,23 +112,23 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	select {
 	case <-ctx.Done():
 
-		stat.DefaultStatTable.Total().Lock()
-		stat.DefaultStatTable.Total().Error++
-		stat.DefaultStatTable.Total().Unlock()
+		//stat.DefaultStatTable.Total().Lock()
+		//stat.DefaultStatTable.Total().Error++
+		//stat.DefaultStatTable.Total().Unlock()
 
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
 
-		stat.DefaultStatTable.Total().Lock()
-		stat.DefaultStatTable.Total().Success++
-		stat.DefaultStatTable.Total().Unlock()
+		//stat.DefaultStatTable.Total().Lock()
+		//stat.DefaultStatTable.Total().Success++
+		//stat.DefaultStatTable.Total().Unlock()
 
 		return rd.Data, nil
 	case err := <-errChan:
 
-		stat.DefaultStatTable.Total().Lock()
-		stat.DefaultStatTable.Total().Error++
-		stat.DefaultStatTable.Total().Unlock()
+		//stat.DefaultStatTable.Total().Lock()
+		//stat.DefaultStatTable.Total().Error++
+		//stat.DefaultStatTable.Total().Unlock()
 
 		return nil, err
 	}
