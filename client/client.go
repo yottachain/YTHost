@@ -9,7 +9,6 @@ import (
 	"github.com/yottachain/YTHost/service"
 	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
-	"time"
 )
 
 type YTHostClient struct {
@@ -71,33 +70,15 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
-	startTime := time.Now()
-	s, _ := stat.DefaultStatTable.GetOrPut(yc.RemotePeer().ID, &stat.ClientStat{Outtime: time.Second * 10})
 
-	s.RLock()
-	if (time.Duration(s.Wait) * s.RequestHandleTime) > s.Outtime {
-		s.Refuse++
-		return nil, fmt.Errorf("[ythost] wait queue overflow len %d", s.Wait)
-	}
-	s.RUnlock()
 	stat.DefaultStatTable.Total().Lock()
 	stat.DefaultStatTable.Total().Current++
 	stat.DefaultStatTable.Total().Unlock()
-
-	s.Set(func(cs *stat.ClientStat) {
-		cs.Wait++
-	})
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
 
 	defer func() {
-		s.Set(func(cs *stat.ClientStat) {
-			if id == 0xCB05 {
-				cs.RequestHandleTime = time.Now().Sub(startTime)
-			}
-			cs.Wait--
-		})
 
 		err := recover()
 		if err != nil {
@@ -131,9 +112,6 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	select {
 	case <-ctx.Done():
-		s.Set(func(cs *stat.ClientStat) {
-			cs.Outtime = time.Now().Sub(startTime)
-		})
 
 		stat.DefaultStatTable.Total().Lock()
 		stat.DefaultStatTable.Total().Error++
@@ -141,9 +119,6 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
-		s.Set(func(cs *stat.ClientStat) {
-			cs.Success++
-		})
 
 		stat.DefaultStatTable.Total().Lock()
 		stat.DefaultStatTable.Total().Success++
@@ -151,10 +126,6 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 		return rd.Data, nil
 	case err := <-errChan:
-
-		s.Set(func(cs *stat.ClientStat) {
-			cs.Error++
-		})
 
 		stat.DefaultStatTable.Total().Lock()
 		stat.DefaultStatTable.Total().Error++

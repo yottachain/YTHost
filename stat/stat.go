@@ -5,7 +5,6 @@ package stat
 
 import (
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"io"
 	"os"
 	"sync"
@@ -29,76 +28,77 @@ type TotalStat struct {
 	sync.RWMutex
 }
 
-func (cs *ClientStat) Set(setFunc func(cs *ClientStat)) {
-	cs.Lock()
-	defer cs.Unlock()
-
-	setFunc(cs)
-}
+//func (cs *ClientStat) Set(setFunc func(cs *ClientStat)) {
+//	cs.Lock()
+//	defer cs.Unlock()
+//
+//	setFunc(cs)
+//}
 
 type StatTable struct {
-	table map[peer.ID]*ClientStat
+	//table map[peer.ID]*ClientStat
 	total *TotalStat
 	sync.RWMutex
 }
 
 var DefaultStatTable = StatTable{
-	table:   make(map[peer.ID]*ClientStat),
+	//table:   make(map[peer.ID]*ClientStat),
 	total:   &TotalStat{},
 	RWMutex: sync.RWMutex{},
 }
 
-func (st *StatTable) List() []peer.ID {
-	st.RLock()
-	defer st.RUnlock()
-
-	var res = make([]peer.ID, len(st.table))
-
-	i := 0
-	for k, _ := range st.table {
-		res[i] = k
-		i++
-	}
-
-	return res
-}
-
+//func (st *StatTable) List() []peer.ID {
+//	st.RLock()
+//	defer st.RUnlock()
+//
+//	var res = make([]peer.ID, len(st.table))
+//
+//	i := 0
+//	for k, _ := range st.table {
+//		res[i] = k
+//		i++
+//	}
+//
+//	return res
+//}
+//
 func (st *StatTable) Total() *TotalStat {
 	return st.total
 }
 
-func (st *StatTable) GetRow(key peer.ID) *ClientStat {
-	st.RLock()
-	defer st.RUnlock()
-
-	stat, ok := st.table[key]
-	if !ok {
-		return nil
-	} else {
-		return stat
-	}
-}
-
-func (st *StatTable) Put(key peer.ID, stat *ClientStat) {
-	st.Lock()
-	defer st.Unlock()
-
-	st.table[key] = stat
-}
-
-func (st *StatTable) GetOrPut(key peer.ID, stat *ClientStat) (*ClientStat, bool) {
-	ok := false
-
-	_stat := st.GetRow(key)
-	if _stat != nil {
-		ok = true
-	} else {
-		_stat = stat
-		st.Put(key, _stat)
-	}
-
-	return _stat, ok
-}
+//
+//func (st *StatTable) GetRow(key peer.ID) *ClientStat {
+//	st.RLock()
+//	defer st.RUnlock()
+//
+//	stat, ok := st.table[key]
+//	if !ok {
+//		return nil
+//	} else {
+//		return stat
+//	}
+//}
+//
+//func (st *StatTable) Put(key peer.ID, stat *ClientStat) {
+//	st.Lock()
+//	defer st.Unlock()
+//
+//	st.table[key] = stat
+//}
+//
+//func (st *StatTable) GetOrPut(key peer.ID, stat *ClientStat) (*ClientStat, bool) {
+//	ok := false
+//
+//	_stat := st.GetRow(key)
+//	if _stat != nil {
+//		ok = true
+//	} else {
+//		_stat = stat
+//		st.Put(key, _stat)
+//	}
+//
+//	return _stat, ok
+//}
 
 func OutPut(fl io.Writer) {
 	//ids := DefaultStatTable.List()
@@ -124,8 +124,10 @@ func OutPut(fl io.Writer) {
 	//	}
 	//}
 
-	DefaultStatTable.total.Lock()
+	DefaultStatTable.total.RLock()
 	fmt.Fprintf(fl, "speed success %d c/s,error %d c/s ,concurrent %d\n", DefaultStatTable.total.Success, DefaultStatTable.total.Error, DefaultStatTable.total.Current)
+	DefaultStatTable.Total().RUnlock()
+	DefaultStatTable.total.Lock()
 	DefaultStatTable.total.Success = 0
 	DefaultStatTable.total.Error = 0
 	DefaultStatTable.total.Unlock()
