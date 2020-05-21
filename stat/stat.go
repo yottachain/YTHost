@@ -16,7 +16,6 @@ type ClientStat struct {
 	Error              uint64
 	Refuse             uint64
 	PreRequestTime     time.Time
-	PreSuccess         uint64
 	RequestHandleSpeed uint64
 	Outtime            time.Duration
 	sync.RWMutex

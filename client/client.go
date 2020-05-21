@@ -88,10 +88,10 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	// 这里为了方便计算 统计周期和超时时间一致
 	if time.Now().Sub(time.Now()) > outtime {
 		s.Lock()
-		s.RequestHandleSpeed = s.Success - s.PreSuccess
+		s.RequestHandleSpeed = s.Success
 
 		s.PreRequestTime = time.Now()
-		s.PreSuccess = s.Success
+		s.Success = 0
 		s.Unlock()
 	}
 
