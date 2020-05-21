@@ -21,6 +21,12 @@ type ClientStat struct {
 	sync.RWMutex
 }
 
+type TotalStat struct {
+	Success uint64
+	Error   uint64
+	sync.RWMutex
+}
+
 func (cs *ClientStat) Set(setFunc func(cs *ClientStat)) {
 	cs.Lock()
 	defer cs.Unlock()
@@ -30,11 +36,13 @@ func (cs *ClientStat) Set(setFunc func(cs *ClientStat)) {
 
 type StatTable struct {
 	table map[peer.ID]*ClientStat
+	total *TotalStat
 	sync.RWMutex
 }
 
 var DefaultStatTable = StatTable{
 	table:   make(map[peer.ID]*ClientStat),
+	total:   &TotalStat{},
 	RWMutex: sync.RWMutex{},
 }
 
@@ -51,6 +59,10 @@ func (st *StatTable) List() []peer.ID {
 	}
 
 	return res
+}
+
+func (st *StatTable) Total() *TotalStat {
+	return st.total
 }
 
 func (st *StatTable) GetRow(key peer.ID) *ClientStat {
@@ -87,7 +99,7 @@ func (st *StatTable) GetOrPut(key peer.ID, stat *ClientStat) (*ClientStat, bool)
 }
 
 func OutPut() {
-	fl, err := os.OpenFile("ythost_stat.csv", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	fl, err := os.OpenFile("ythost_stat.log", os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -115,6 +127,12 @@ func OutPut() {
 			row.RUnlock()
 		}
 	}
+
+	DefaultStatTable.total.Lock()
+	fmt.Fprintf(fl, "speed success %d c/s,error %d c/s\n", DefaultStatTable.total.Success/5, DefaultStatTable.total.Error/5)
+	DefaultStatTable.total.Success = 0
+	DefaultStatTable.total.Error = 0
+	DefaultStatTable.total.Unlock()
 }
 
 func init() {

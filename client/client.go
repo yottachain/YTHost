@@ -126,11 +126,19 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 			cs.Outtime = time.Now().Sub(startTime)
 		})
 
+		stat.DefaultStatTable.Total().Lock()
+		stat.DefaultStatTable.Total().Error++
+		stat.DefaultStatTable.Total().Unlock()
+
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
 		s.Set(func(cs *stat.ClientStat) {
 			cs.Success++
 		})
+
+		stat.DefaultStatTable.Total().Lock()
+		stat.DefaultStatTable.Total().Success++
+		stat.DefaultStatTable.Total().Unlock()
 
 		return rd.Data, nil
 	case err := <-errChan:
@@ -138,6 +146,11 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 		s.Set(func(cs *stat.ClientStat) {
 			cs.Error++
 		})
+
+		stat.DefaultStatTable.Total().Lock()
+		stat.DefaultStatTable.Total().Error++
+		stat.DefaultStatTable.Total().Unlock()
+
 		return nil, err
 	}
 }
