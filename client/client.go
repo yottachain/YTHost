@@ -7,7 +7,9 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/service"
+	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
+	"time"
 )
 
 type YTHostClient struct {
@@ -69,10 +71,35 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
+	s, ok := stat.DefaultStatTable.GetOrPut(yc.RemotePeer().ID, &stat.ClientStat{Outtime: time.Second * 10, PreRequestTime: time.Now()})
+	if ok {
+		s.RLock()
+		// 如果等待队列长度大于 * 0.8(系数) 请求处理速度 返回失败
+		if s.RequestHandleSpeed > 0 && s.RequestHandleSpeed*10 < s.Wait*8 {
+			return nil, fmt.Errorf("[ythost] wait queue overflow len %d\n", s.Wait)
+		}
+		s.RUnlock()
+	}
 
-	//stat.DefaultStatTable.Total().Lock()
-	//stat.DefaultStatTable.Total().Current++
-	//stat.DefaultStatTable.Total().Unlock()
+	s.RLock()
+	outtime := s.Outtime
+	s.RUnlock()
+
+	// 这里为了方便计算 统计周期和超时时间一致
+	if time.Now().Sub(time.Now()) > outtime {
+		s.Lock()
+		s.RequestHandleSpeed = s.Success - s.PreSuccess
+
+		s.PreRequestTime = time.Now()
+		s.PreSuccess = s.Success
+		s.Unlock()
+	}
+
+	startTime := time.Now()
+
+	s.Lock()
+	s.Wait++
+	s.Unlock()
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
@@ -87,9 +114,10 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	go func() {
 		defer func() {
-			//stat.DefaultStatTable.Total().Lock()
-			//stat.DefaultStatTable.Total().Current--
-			//stat.DefaultStatTable.Total().Unlock()
+			s.Lock()
+			s.Wait--
+			s.Success++
+			s.Unlock()
 		}()
 
 		var res service.Response
@@ -111,25 +139,13 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	select {
 	case <-ctx.Done():
-
-		//stat.DefaultStatTable.Total().Lock()
-		//stat.DefaultStatTable.Total().Error++
-		//stat.DefaultStatTable.Total().Unlock()
-
+		s.Lock()
+		s.Outtime = time.Now().Sub(startTime)
+		s.Unlock()
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
-
-		//stat.DefaultStatTable.Total().Lock()
-		//stat.DefaultStatTable.Total().Success++
-		//stat.DefaultStatTable.Total().Unlock()
-
 		return rd.Data, nil
 	case err := <-errChan:
-
-		//stat.DefaultStatTable.Total().Lock()
-		//stat.DefaultStatTable.Total().Error++
-		//stat.DefaultStatTable.Total().Unlock()
-
 		return nil, err
 	}
 }
