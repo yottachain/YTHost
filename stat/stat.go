@@ -6,6 +6,7 @@ package stat
 import (
 	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -99,13 +100,7 @@ func (st *StatTable) GetOrPut(key peer.ID, stat *ClientStat) (*ClientStat, bool)
 	return _stat, ok
 }
 
-func OutPut() {
-	fl, err := os.OpenFile("ythost_stat.log", os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer fl.Close()
-
+func OutPut(fl io.Writer) {
 	//ids := DefaultStatTable.List()
 	//
 	//fmt.Fprintf(fl, "index,id,wait,success,error,requestTime,outtime,refuse\n")
@@ -130,17 +125,22 @@ func OutPut() {
 	//}
 
 	DefaultStatTable.total.Lock()
-	fmt.Fprintf(fl, "speed success %d c/s,error %d c/s ,concurrent %d\n", DefaultStatTable.total.Success/5, DefaultStatTable.total.Error/5, DefaultStatTable.total.Current)
+	fmt.Fprintf(fl, "speed success %d c/s,error %d c/s ,concurrent %d\n", DefaultStatTable.total.Success, DefaultStatTable.total.Error, DefaultStatTable.total.Current)
 	DefaultStatTable.total.Success = 0
 	DefaultStatTable.total.Error = 0
 	DefaultStatTable.total.Unlock()
 }
 
 func init() {
+	fl, err := os.OpenFile("ythost_stat.log", os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println(err)
+	}
 	go func() {
 		for {
-			OutPut()
-			<-time.After(time.Second * 5)
+			OutPut(fl)
+			<-time.After(time.Second * 1)
 		}
+		fl.Close()
 	}()
 }
