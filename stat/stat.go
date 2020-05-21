@@ -24,6 +24,7 @@ type ClientStat struct {
 type TotalStat struct {
 	Success uint64
 	Error   uint64
+	Current uint64
 	sync.RWMutex
 }
 
@@ -105,31 +106,31 @@ func OutPut() {
 	}
 	defer fl.Close()
 
-	ids := DefaultStatTable.List()
-
-	fmt.Fprintf(fl, "index,id,wait,success,error,requestTime,outtime,refuse\n")
-	for i, id := range ids {
-		row := DefaultStatTable.GetRow(id)
-		if row != nil {
-			row.RLock()
-			fmt.Fprintf(
-				fl,
-				"%d,%s,%d,%d,%d,%d ms,%d ms,%d\n",
-				i,
-				id.Pretty(),
-				row.Wait,
-				row.Success,
-				row.Error,
-				row.RequestHandleTime.Milliseconds(),
-				row.Outtime.Milliseconds(),
-				row.Refuse,
-			)
-			row.RUnlock()
-		}
-	}
+	//ids := DefaultStatTable.List()
+	//
+	//fmt.Fprintf(fl, "index,id,wait,success,error,requestTime,outtime,refuse\n")
+	//for i, id := range ids {
+	//	row := DefaultStatTable.GetRow(id)
+	//	if row != nil {
+	//		row.RLock()
+	//		fmt.Fprintf(
+	//			fl,
+	//			"%d,%s,%d,%d,%d,%d ms,%d ms,%d\n",
+	//			i,
+	//			id.Pretty(),
+	//			row.Wait,
+	//			row.Success,
+	//			row.Error,
+	//			row.RequestHandleTime.Milliseconds(),
+	//			row.Outtime.Milliseconds(),
+	//			row.Refuse,
+	//		)
+	//		row.RUnlock()
+	//	}
+	//}
 
 	DefaultStatTable.total.Lock()
-	fmt.Fprintf(fl, "speed success %d c/s,error %d c/s\n", DefaultStatTable.total.Success/5, DefaultStatTable.total.Error/5)
+	fmt.Fprintf(fl, "speed success %d c/s,error %d c/s ,concurrent %d\n", DefaultStatTable.total.Success/5, DefaultStatTable.total.Error/5, DefaultStatTable.total.Current)
 	DefaultStatTable.total.Success = 0
 	DefaultStatTable.total.Error = 0
 	DefaultStatTable.total.Unlock()

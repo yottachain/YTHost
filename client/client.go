@@ -80,6 +80,9 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 		return nil, fmt.Errorf("[ythost] wait queue overflow len %d", s.Wait)
 	}
 	s.RUnlock()
+	stat.DefaultStatTable.Total().Lock()
+	stat.DefaultStatTable.Total().Current++
+	stat.DefaultStatTable.Total().Unlock()
 
 	s.Set(func(cs *stat.ClientStat) {
 		cs.Wait++
@@ -103,6 +106,12 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	}()
 
 	go func() {
+		defer func() {
+			stat.DefaultStatTable.Total().Lock()
+			stat.DefaultStatTable.Total().Current--
+			stat.DefaultStatTable.Total().Unlock()
+		}()
+
 		var res service.Response
 		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey}
 		if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res); err != nil {
