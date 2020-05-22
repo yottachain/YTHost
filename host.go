@@ -190,18 +190,18 @@ func (hst *host) Addrs() []multiaddr.Multiaddr {
 
 // Connect 连接远程节点
 func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-	var status int
-	var interval int64
-	defer func() {
-		//  标记成功失败
-		hst.ow.Feedback(counter.InRow{pid.Pretty(), status, interval})
-	}()
+	//var status int
+	//var interval int64
+	//defer func() {
+	//	//  标记成功失败
+	//	hst.ow.Feedback(counter.InRow{pid.Pretty(), status, interval})
+	//}()
 
-	startTime := time.Now()
+	//startTime := time.Now()
 	conn, err := hst.connect(ctx, pid, mas)
-	interval = time.Now().Sub(startTime).Milliseconds()
+	//interval = time.Now().Sub(startTime).Milliseconds()
 	if err != nil {
-		status = 1
+		//status = 1
 		return nil, err
 	}
 
@@ -211,7 +211,7 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		hst.Addrs(),
 	}, hst.cfg.Privkey.GetPublic())
 	if err != nil {
-		status = 1
+		//status = 1
 		return nil, err
 	}
 	return ytclt, nil
@@ -290,18 +290,18 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
 	}
 
-	var status int
-	var interval int64
-	defer func() {
-		//  标记成功失败
-		hst.ow.Feedback(counter.InRow{pid.Pretty(), status, interval})
-	}()
+	//var status int
+	//var interval int64
+	//defer func() {
+	//	//  标记成功失败
+	//	hst.ow.Feedback(counter.InRow{pid.Pretty(), status, interval})
+	//}()
 
-	startTime := time.Now()
+	//startTime := time.Now()
 	res, err := clt.SendMsg(ctx, mid, msg)
-	interval = time.Now().Sub(startTime).Milliseconds()
+	//interval = time.Now().Sub(startTime).Milliseconds()
 	if err != nil {
-		status = 1
+		//status = 1
 		return nil, err
 	}
 

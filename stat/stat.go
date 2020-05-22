@@ -86,26 +86,4 @@ func (st *StatTable) GetOrPut(key peer.ID, stat *ClientStat) (*ClientStat, bool)
 }
 
 func OutPut(fl io.Writer) {
-	//ids := DefaultStatTable.List()
-	//
-	//fmt.Fprintf(fl, "index,id,wait,success,error,requestTime,outtime,refuse\n")
-	//for i, id := range ids {
-	//	row := DefaultStatTable.GetRow(id)
-	//	if row != nil {
-	//		row.RLock()
-	//		fmt.Fprintf(
-	//			fl,
-	//			"%d,%s,%d,%d,%d,%d ms,%d ms,%d\n",
-	//			i,
-	//			id.Pretty(),
-	//			row.Wait,
-	//			row.Success,
-	//			row.Error,
-	//			row.RequestHandleTime.Milliseconds(),
-	//			row.Outtime.Milliseconds(),
-	//			row.Refuse,
-	//		)
-	//		row.RUnlock()
-	//	}
-	//}
 }
