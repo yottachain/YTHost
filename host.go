@@ -10,8 +10,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"net/rpc"
-	"os"
-	"path"
 	"sync"
 	"time"
 
@@ -59,20 +57,20 @@ func NewHost(options ...option.Option) (*host, error) {
 	//go hst.ow.Run(context.Background())
 
 	// 打印计数器
-	go func() {
-		for {
-			<-time.After(time.Minute)
-			logpath := path.Join(path.Dir(os.Args[0]), "opt.log")
-			fl, err := os.OpenFile(logpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-			if err != nil {
-				continue
-			}
-
-			for k, v := range hst.ow.Optmizer.CurrentCount() {
-				fmt.Fprintf(fl, "%s,%d,%d,%d,%d", k, v.SuccTimes, v.FailTimes, v.AvgDelayTimes, v.Score)
-			}
-		}
-	}()
+	//go func() {
+	//	for {
+	//		<-time.After(time.Minute)
+	//		logpath := path.Join(path.Dir(os.Args[0]), "opt.log")
+	//		fl, err := os.OpenFile(logpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	//		if err != nil {
+	//			continue
+	//		}
+	//
+	//		for k, v := range hst.ow.Optmizer.CurrentCount() {
+	//			fmt.Fprintf(fl, "%s,%d,%d,%d,%d", k, v.SuccTimes, v.FailTimes, v.AvgDelayTimes, v.Score)
+	//		}
+	//	}
+	//}()
 
 	hst.cfg = config.NewConfig()
 
