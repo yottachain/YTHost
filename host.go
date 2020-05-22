@@ -56,7 +56,7 @@ func NewHost(options ...option.Option) (*host, error) {
 	hst.ow = &optWarp{optimizer.New(), nil, time.Time{}, sync.RWMutex{}}
 	hst.ow.Optmizer.GetScore = optGetScore
 
-	go hst.ow.Run(context.Background())
+	//go hst.ow.Run(context.Background())
 
 	// 打印计数器
 	go func() {
