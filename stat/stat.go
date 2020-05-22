@@ -41,7 +41,7 @@ func (cs *ClientStat) Print(id string) {
 		cs.Error,
 		cs.CtxDone,
 		cs.RequestHandleSpeed,
-		cs.Outtime,
+		cs.Outtime.Milliseconds(),
 	)
 }
 
