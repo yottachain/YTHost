@@ -32,8 +32,6 @@ func (cs *ClientStat) Set(setFunc func(cs *ClientStat)) {
 }
 
 func (cs *ClientStat) Print(id string) {
-	cs.RLock()
-	defer cs.RUnlock()
 
 	log.Printf("[ythost stat] id %s waite %d success %d error %d ctx timeout %d speed %d interval %d ms \n",
 		id,
