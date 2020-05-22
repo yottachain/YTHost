@@ -7,7 +7,9 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/service"
+	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
+	"time"
 )
 
 type YTHostClient struct {
@@ -69,6 +71,18 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
+	s, _ := stat.DefaultStatTable.GetOrPut(yc.RemotePeer().ID, &stat.ClientStat{Outtime: time.Second * 10, PreRequestTime: time.Now()})
+	startTime := time.Now()
+
+	s.RLock()
+	if s.Wait > s.RequestHandleSpeed {
+		return nil, fmt.Errorf("wait queue overflow len: %d\n", s.Wait)
+	}
+	s.RUnlock()
+
+	s.Lock()
+	s.Wait++
+	s.Unlock()
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
@@ -80,6 +94,18 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	}()
 
 	go func() {
+		defer func() {
+			s.Lock()
+			s.Wait--
+			if time.Now().Sub(s.PreRequestTime) > s.Outtime {
+				s.RequestHandleSpeed = s.Success
+				s.PreRequestTime = time.Now()
+
+				s.Success = 0
+			}
+			s.Unlock()
+		}()
+
 		var res service.Response
 
 		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey}
@@ -101,6 +127,10 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	select {
 	case <-ctx.Done():
+		s.Lock()
+		s.Outtime = time.Now().Sub(startTime)
+		s.Unlock()
+
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
 		return rd.Data, nil
