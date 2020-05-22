@@ -75,7 +75,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	startTime := time.Now()
 
 	s.RLock()
-	if s.Wait > s.RequestHandleSpeed {
+	if s.RequestHandleSpeed > 0 && s.Wait > s.RequestHandleSpeed {
 		return nil, fmt.Errorf("wait queue overflow len: %d\n", s.Wait)
 	}
 	s.RUnlock()
@@ -101,7 +101,10 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 				s.RequestHandleSpeed = s.Success
 				s.PreRequestTime = time.Now()
 
+				s.Print(yc.RemotePeer().ID.Pretty())
 				s.Success = 0
+				s.Error = 0
+				s.CtxDone = 0
 			}
 			s.Unlock()
 		}()
@@ -129,12 +132,18 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	case <-ctx.Done():
 		s.Lock()
 		s.Outtime = time.Now().Sub(startTime)
+		s.CtxDone++
 		s.Unlock()
-
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
+		s.Lock()
+		s.Success++
+		s.Unlock()
 		return rd.Data, nil
 	case err := <-errChan:
+		s.Lock()
+		s.Error++
+		s.Unlock()
 		return nil, err
 	}
 }

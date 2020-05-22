@@ -6,6 +6,8 @@ package stat
 import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"io"
+	"log"
+	"os"
 	"sync"
 	"time"
 )
@@ -14,6 +16,7 @@ type ClientStat struct {
 	Wait               uint64
 	Success            uint64
 	Error              uint64
+	CtxDone            uint64
 	Refuse             uint64
 	PreRequestTime     time.Time
 	RequestHandleSpeed uint64
@@ -26,6 +29,20 @@ func (cs *ClientStat) Set(setFunc func(cs *ClientStat)) {
 	defer cs.Unlock()
 
 	setFunc(cs)
+}
+
+func (cs *ClientStat) Print(id string) {
+	cs.RLock()
+	defer cs.RUnlock()
+
+	log.Printf("[ythost stat] id %s success %d error %d ctx timeout %d speed %d interval %d ms \n",
+		id,
+		cs.Success,
+		cs.Error,
+		cs.CtxDone,
+		cs.RequestHandleSpeed,
+		cs.Outtime,
+	)
 }
 
 type StatTable struct {
@@ -86,4 +103,11 @@ func (st *StatTable) GetOrPut(key peer.ID, stat *ClientStat) (*ClientStat, bool)
 }
 
 func OutPut(fl io.Writer) {
+}
+
+func init() {
+	fl, err := os.OpenFile("ythost.log", os.O_CREATE|os.O_WRONLY, 0644)
+	if err == nil {
+		log.SetOutput(fl)
+	}
 }
