@@ -4,6 +4,7 @@
 package stat
 
 import (
+	"bytes"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"io"
 	"log"
@@ -31,9 +32,9 @@ func (cs *ClientStat) Set(setFunc func(cs *ClientStat)) {
 	setFunc(cs)
 }
 
-func (cs *ClientStat) Print(id string) {
+func (cs *ClientStat) Print(id peer.ID) {
 
-	log.Printf("[ythost stat] id %s waite %d success %d error %d ctx timeout %d speed %d interval %d ms \n",
+	log.Printf("[ythost stat] id %s wait %d success %d error %d ctx timeout %d speed %d interval %d ms \n",
 		id,
 		cs.Wait,
 		cs.Success,
@@ -105,8 +106,16 @@ func OutPut(fl io.Writer) {
 }
 
 func init() {
-	fl, err := os.OpenFile("ythost.log", os.O_CREATE|os.O_WRONLY, 0644)
-	if err == nil {
-		log.SetOutput(fl)
-	}
+	fl, _ := os.OpenFile("ythost.log", os.O_CREATE|os.O_WRONLY, 0644)
+
+	buf := bytes.NewBufferString("")
+	log.SetOutput(buf)
+
+	go func() {
+		for {
+			<-time.After(time.Minute)
+			io.Copy(fl, buf)
+			buf.Reset()
+		}
+	}()
 }

@@ -72,7 +72,6 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
 	s, _ := stat.DefaultStatTable.GetOrPut(yc.RemotePeer().ID, &stat.ClientStat{Outtime: time.Second * 10, PreRequestTime: time.Now()})
-	startTime := time.Now()
 
 	s.RLock()
 	speed := s.RequestHandleSpeed
@@ -103,7 +102,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 				s.RequestHandleSpeed = s.Success
 				s.PreRequestTime = time.Now()
 
-				s.Print(yc.RemotePeer().ID.Pretty())
+				s.Print(yc.RemotePeer().ID)
 				s.Success = 0
 				s.Error = 0
 				s.CtxDone = 0
@@ -133,7 +132,6 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	select {
 	case <-ctx.Done():
 		s.Lock()
-		s.Outtime = time.Now().Sub(startTime)
 		s.CtxDone++
 		s.Unlock()
 		return nil, fmt.Errorf("ctx time out")
