@@ -78,7 +78,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	speed := s.RequestHandleSpeed
 	s.RUnlock()
 
-	if (speed > 0) && (s.Wait > s.RequestHandleSpeed) {
+	if (speed > 0) && (s.Wait > (s.RequestHandleSpeed + 30)) {
 		return nil, fmt.Errorf("wait queue overflow len: %d\n", s.Wait)
 	}
 
