@@ -1,121 +1,86 @@
-// stat
-// 统计模块
-//
 package stat
 
 import (
-	"bytes"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"io"
 	"log"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-type ClientStat struct {
-	Wait               uint64
-	Success            uint64
-	Error              uint64
-	CtxDone            uint64
-	Refuse             uint64
-	PreRequestTime     time.Time
-	RequestHandleSpeed uint64
-	Outtime            time.Duration
+type WaitMap struct {
+	pool map[peer.ID]uint64
 	sync.RWMutex
 }
 
-func (cs *ClientStat) Set(setFunc func(cs *ClientStat)) {
-	cs.Lock()
-	defer cs.Unlock()
+func (wm *WaitMap) Add(id peer.ID) {
+	wm.Lock()
+	defer wm.Unlock()
 
-	setFunc(cs)
-}
-
-func (cs *ClientStat) Print(id peer.ID) {
-
-	log.Printf("[ythost stat] id %s wait %d success %d error %d ctx timeout %d speed %d interval %d ms \n",
-		id,
-		cs.Wait,
-		cs.Success,
-		cs.Error,
-		cs.CtxDone,
-		cs.RequestHandleSpeed,
-		cs.Outtime.Milliseconds(),
-	)
-}
-
-type StatTable struct {
-	table map[peer.ID]*ClientStat
-	sync.RWMutex
-}
-
-var DefaultStatTable = StatTable{
-	table: make(map[peer.ID]*ClientStat),
-}
-
-func (st *StatTable) List() []peer.ID {
-	st.RLock()
-	defer st.RUnlock()
-
-	var res = make([]peer.ID, len(st.table))
-
-	i := 0
-	for k, _ := range st.table {
-		res[i] = k
-		i++
-	}
-
-	return res
-}
-
-func (st *StatTable) GetRow(key peer.ID) *ClientStat {
-	st.RLock()
-	defer st.RUnlock()
-
-	stat, ok := st.table[key]
-	if !ok {
-		return nil
+	if i, ok := wm.pool[id]; ok {
+		wm.pool[id] = i + 1
 	} else {
-		return stat
+		wm.pool[id] = 1
 	}
 }
 
-func (st *StatTable) Put(key peer.ID, stat *ClientStat) {
-	st.Lock()
-	defer st.Unlock()
+func (wm *WaitMap) Sub(id peer.ID) {
+	wm.Lock()
+	defer wm.Unlock()
 
-	st.table[key] = stat
-}
-
-func (st *StatTable) GetOrPut(key peer.ID, stat *ClientStat) (*ClientStat, bool) {
-	ok := false
-
-	_stat := st.GetRow(key)
-	if _stat != nil {
-		ok = true
-	} else {
-		_stat = stat
-		st.Put(key, _stat)
+	if i, ok := wm.pool[id]; ok {
+		if i-1 == 0 {
+			delete(wm.pool, id)
+		} else {
+			wm.pool[id] = i - 1
+		}
 	}
-
-	return _stat, ok
 }
 
-func OutPut(fl io.Writer) {
+func (wm *WaitMap) Len() int {
+	return len(wm.pool)
 }
+
+type Stat struct {
+	Success int64
+	Error   int64
+	CtxDone int64
+	Wait    WaitMap
+}
+
+func (s *Stat) Reset() {
+	atomic.StoreInt64(&s.Success, 0)
+	atomic.StoreInt64(&s.Error, 0)
+	atomic.StoreInt64(&s.CtxDone, 0)
+}
+
+func (s *Stat) Get() (int, int64, int64, int64) {
+	return s.Wait.Len(), atomic.LoadInt64(&s.Success), atomic.LoadInt64(&s.Error), atomic.LoadInt64(&s.CtxDone)
+}
+
+func (s *Stat) Add(ss int64, e int64, c int64) {
+	if ss != 0 {
+		atomic.AddInt64(&s.Success, ss)
+	}
+	if e != 0 {
+		atomic.AddInt64(&s.Error, e)
+	}
+	if c != 0 {
+		atomic.AddInt64(&s.CtxDone, c)
+	}
+}
+
+var Default = &Stat{}
 
 func init() {
-	fl, _ := os.OpenFile("ythost.log", os.O_CREATE|os.O_WRONLY, 0644)
-
-	buf := bytes.NewBufferString("")
-	log.SetOutput(buf)
-
+	fl, _ := os.OpenFile("ythost.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	log.SetOutput(fl)
 	go func() {
 		for {
-			<-time.After(time.Minute)
-			io.Copy(fl, buf)
-			buf.Reset()
+			<-time.After(time.Second * 10)
+			log.Printf("并发 %d,成功 %d,失败 %d, 超时 %d\n", Default.Get())
+			Default.Reset()
 		}
 	}()
 }
