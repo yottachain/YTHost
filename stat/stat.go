@@ -79,7 +79,8 @@ func init() {
 	go func() {
 		for {
 			<-time.After(time.Second * 10)
-			log.Printf("并发 %d,成功 %d,失败 %d, 超时 %d\n", Default.Get())
+			v1, v2, v3, v4 := Default.Get()
+			log.Printf("并发 %d,成功 %d,失败 %d, 超时 %d\n", v1, v2, v3, v4)
 			Default.Reset()
 		}
 	}()

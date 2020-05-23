@@ -10,6 +10,7 @@ import (
 	. "github.com/yottachain/YTHost/hostInterface"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/service"
+	"github.com/yottachain/YTHost/stat"
 	"math/rand"
 	"net"
 
@@ -645,3 +646,10 @@ func TestDnsMa(t *testing.T) {
 //		time.Sleep(time.Second * 1)
 //	}
 //}
+
+func TestStat(t *testing.T) {
+	for {
+		<-time.After(time.Second)
+		fmt.Println(stat.Default.Get())
+	}
+}
