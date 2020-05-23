@@ -71,7 +71,9 @@ func (s *Stat) Add(ss int64, e int64, c int64) {
 	}
 }
 
-var Default = &Stat{}
+var Default = &Stat{
+	Wait: WaitMap{pool: make(map[peer.ID]uint64)},
+}
 
 func init() {
 	fl, _ := os.OpenFile("ythost.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
