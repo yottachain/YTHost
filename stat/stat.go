@@ -1,6 +1,7 @@
 package stat
 
 import (
+	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"log"
 	"os"
@@ -30,11 +31,15 @@ func (wm *WaitMap) Sub(id peer.ID) {
 	defer wm.Unlock()
 
 	if i, ok := wm.pool[id]; ok {
-		if i-1 == 0 {
+		if i-1 <= 0 {
+			fmt.Println("删除")
 			delete(wm.pool, id)
 		} else {
+			fmt.Println(i - 1)
 			wm.pool[id] = i - 1
 		}
+	} else {
+		fmt.Println(ok, len(wm.pool))
 	}
 }
 

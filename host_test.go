@@ -5,6 +5,7 @@ import (
 	ra "crypto/rand"
 	"fmt"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	host "github.com/yottachain/YTHost"
 	. "github.com/yottachain/YTHost/hostInterface"
@@ -651,5 +652,9 @@ func TestStat(t *testing.T) {
 	for {
 		<-time.After(time.Second)
 		fmt.Println(stat.Default.Get())
+		stat.Default.Wait.Add(peer.ID("111"))
+		stat.Default.Wait.Add(peer.ID("111"))
+		stat.Default.Wait.Sub(peer.ID("111"))
+		stat.Default.Wait.Sub(peer.ID("111"))
 	}
 }

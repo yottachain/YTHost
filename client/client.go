@@ -76,6 +76,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	errChan := make(chan error)
 
 	defer func() {
+		stat.Default.Wait.Sub(yc.RemotePeer().ID)
 		if err := recover(); err != nil {
 			errChan <- err.(error)
 		}
@@ -83,7 +84,6 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	go func() {
 		defer func() {
-			stat.Default.Wait.Sub(yc.RemotePeer().ID)
 		}()
 
 		var res service.Response
