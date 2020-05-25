@@ -168,7 +168,7 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
 
 	// 补齐水位线之下的
 	for _, v := range list[optNum+1:] {
-		if v.Duration < time.Second*10 {
+		if v.Duration < time.Second*9 {
 			res = append(res, v.ID.Pretty())
 		}
 	}
