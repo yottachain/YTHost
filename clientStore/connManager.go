@@ -135,7 +135,7 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
 
 	for k, v := range nodes {
 		var current Source
-		pid, err := peer.IDFromString(v)
+		pid, err := peer.Decode(v)
 		current.ID = pid
 
 		if err == nil {
