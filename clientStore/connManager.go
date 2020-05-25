@@ -150,7 +150,7 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
 		list[k] = current
 	}
 
-	for i := 0; i < optNum; i++ {
+	for i := 0; i < len(list); i++ {
 		for j := i; j < len(list); j++ {
 			if list[j].Duration < list[i].Duration {
 				temp := list[i]
