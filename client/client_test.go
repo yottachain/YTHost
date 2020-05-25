@@ -1,11 +1,14 @@
 package client_test
 
 import (
+	"fmt"
 	"github.com/multiformats/go-multiaddr"
 	host "github.com/yottachain/YTHost"
+	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/service"
 	"golang.org/x/net/context"
+	"math/rand"
 	"testing"
 	"time"
 )
@@ -69,5 +72,19 @@ func TestClient(t *testing.T) {
 
 	if !clt.IsClosed() {
 		clt.Close()
+	}
+}
+
+func TestSpeedCounter_AvgSpeed(t *testing.T) {
+	sc := client.NewSpeedCounter(5)
+	go func() {
+		for {
+			<-time.After(time.Second)
+			sc.Push(time.Duration(rand.Int63()))
+		}
+	}()
+	for {
+		<-time.After(time.Second)
+		fmt.Println(sc.AvgSpeed())
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/yottachain/YTHost/service"
 	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
+	"time"
 )
 
 type YTHostClient struct {
@@ -17,6 +18,7 @@ type YTHostClient struct {
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	isClosed        bool
+	Sc              *SpeedCounter
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
@@ -60,6 +62,7 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 	yc.Client = clt
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
+	yc.Sc = NewSpeedCounter(10)
 
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
@@ -70,6 +73,8 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
+	startTime := time.Now()
+
 	var rpid = yc.RemotePeer().ID
 
 	if rpid != "" && id == 0xCB05 {
@@ -90,6 +95,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	go func() {
 		defer func() {
+			yc.Sc.Push(time.Now().Sub(startTime))
 		}()
 
 		var res service.Response

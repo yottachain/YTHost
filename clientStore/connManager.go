@@ -8,6 +8,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/client"
 	"sync"
+	"time"
 )
 
 type ClientStore struct {
@@ -15,7 +16,6 @@ type ClientStore struct {
 	q       chan struct{}
 	sync.Map
 	sync.Mutex
-	MtxMap sync.Map
 }
 
 // Get 获取一个客户端，如果没有，建立新的客户端连接
@@ -34,11 +34,6 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	defer func() {
 		<-cs.q
 	}()
-
-	//actul, _ := cs.MtxMap.LoadOrStore(pid, &sync.Mutex{})
-	//mux := actul.(*sync.Mutex)
-	//mux.Lock()
-	//defer mux.Unlock()
 
 	// 尝试次数
 	var tryCount int
@@ -127,6 +122,46 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		make(chan struct{}, 1000),
 		sync.Map{},
 		sync.Mutex{},
-		sync.Map{},
 	}
+}
+
+func (cs *ClientStore) GetOptNodes(nodes []string, optNum int, randNum int) []string {
+	type Source struct {
+		ID       peer.ID
+		Duration time.Duration
+	}
+	var list []Source = make([]Source, len(nodes))
+
+	for k, v := range nodes {
+		var current Source
+		pid, err := peer.IDFromString(v)
+		current.ID = pid
+
+		if err == nil {
+			if ac, ok := cs.Map.Load(pid); ok {
+				client := ac.(*client.YTHostClient)
+				current.Duration = client.Sc.AvgSpeed()
+			}
+		}
+
+		list[k] = current
+	}
+
+	for i := 0; i < len(list); i++ {
+		for j := i; j < len(list); j++ {
+			if list[j].Duration < list[i].Duration {
+				temp := list[i]
+				list[i] = list[j]
+				list[j] = temp
+			}
+		}
+	}
+
+	var res = make([]string, optNum+randNum)
+
+	for k, v := range list[:optNum+randNum] {
+		res[k] = v.ID.Pretty()
+	}
+
+	return res
 }
