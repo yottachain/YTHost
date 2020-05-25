@@ -8,6 +8,8 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/stat"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -167,8 +169,18 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
 	}
 
 	// 补齐水位线之下的
+	var opt_outtime int64 = 9
+
+	if outtimestr, ok := os.LookupEnv("opt_outtime"); ok {
+		n, err := strconv.ParseInt(outtimestr, 10, 64)
+		if err == nil {
+			opt_outtime = n
+			fmt.Println("水位线超时时间", opt_outtime)
+		}
+	}
+
 	for _, v := range list[optNum+1:] {
-		if v.Duration < time.Second*9 {
+		if v.Duration < time.Second*time.Duration(opt_outtime) {
 			res = append(res, v.ID.Pretty())
 		}
 	}
