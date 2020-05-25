@@ -70,13 +70,19 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
-	stat.Default.Wait.Add(yc.RemotePeer().ID)
+	var rpid = yc.RemotePeer().ID
+
+	if rpid != "" && id == 0xCB05 {
+		stat.Default.Wait.Add(rpid)
+	}
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
 
 	defer func() {
-		stat.Default.Wait.Sub(yc.RemotePeer().ID)
+		if rpid != "" && id == 0xCB05 {
+			stat.Default.Wait.Sub(rpid)
+		}
 		if err := recover(); err != nil {
 			errChan <- err.(error)
 		}
@@ -107,13 +113,19 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	select {
 	case <-ctx.Done():
-		stat.Default.Add(0, 0, 1)
+		if id == 0xCB05 {
+			stat.Default.Add(0, 0, 1)
+		}
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
-		stat.Default.Add(1, 0, 0)
+		if id == 0xCB05 {
+			stat.Default.Add(1, 0, 0)
+		}
 		return rd.Data, nil
 	case err := <-errChan:
-		stat.Default.Add(0, 1, 0)
+		if id == 0xCB05 {
+			stat.Default.Add(0, 1, 0)
+		}
 		return nil, err
 	}
 }
