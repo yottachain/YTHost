@@ -166,5 +166,12 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
 		res[k] = v.ID.Pretty()
 	}
 
+	// 补齐水位线之下的
+	for _, v := range list[optNum+1:] {
+		if v.Duration < time.Second*10 {
+			res = append(res, v.ID.Pretty())
+		}
+	}
+
 	return res
 }
