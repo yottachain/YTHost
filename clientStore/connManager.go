@@ -126,7 +126,7 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 	}
 }
 
-func (cs *ClientStore) GetOptNodes(nodes []string, optNum int, randNum int) []string {
+func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
 	type Source struct {
 		ID       peer.ID
 		Duration time.Duration
@@ -141,12 +141,9 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int, randNum int) []st
 		if err == nil {
 			if ac, ok := cs.Map.Load(pid); ok {
 				client := ac.(*client.YTHostClient)
-				current.Duration = client.Sc.AvgSpeed()
 
-				// 如果等待任务是0 延迟设置为0
-				if stat.Default.Wait.Get(pid) == 0 {
-					current.Duration = 0
-				}
+				wait := stat.Default.Wait.Get(pid)
+				current.Duration = client.Sc.AvgSpeed() * time.Duration(wait)
 			}
 		}
 
@@ -163,9 +160,9 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int, randNum int) []st
 		}
 	}
 
-	var res = make([]string, optNum+randNum)
+	var res = make([]string, optNum)
 
-	for k, v := range list[:optNum+randNum] {
+	for k, v := range list[:optNum] {
 		res[k] = v.ID.Pretty()
 	}
 

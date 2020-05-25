@@ -45,8 +45,11 @@ func (wm *WaitMap) Sub(id peer.ID) {
 func (wm *WaitMap) Get(id peer.ID) uint64 {
 	wm.RLock()
 	defer wm.RUnlock()
-
-	return wm.pool[id]
+	res, ok := wm.pool[id]
+	if ok {
+		return res
+	}
+	return 0
 }
 
 func (wm *WaitMap) Len() int {
