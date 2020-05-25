@@ -7,6 +7,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/client"
+	"github.com/yottachain/YTHost/stat"
 	"sync"
 	"time"
 )
@@ -141,6 +142,11 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int, randNum int) []st
 			if ac, ok := cs.Map.Load(pid); ok {
 				client := ac.(*client.YTHostClient)
 				current.Duration = client.Sc.AvgSpeed()
+
+				// 如果等待任务是0 延迟设置为0
+				if stat.Default.Wait.Get(pid) == 0 {
+					current.Duration = 0
+				}
 			}
 		}
 

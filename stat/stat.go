@@ -42,6 +42,12 @@ func (wm *WaitMap) Sub(id peer.ID) {
 		fmt.Println(ok, len(wm.pool))
 	}
 }
+func (wm *WaitMap) Get(id peer.ID) uint64 {
+	wm.RLock()
+	defer wm.RUnlock()
+
+	return wm.pool[id]
+}
 
 func (wm *WaitMap) Len() int {
 	return len(wm.pool)
