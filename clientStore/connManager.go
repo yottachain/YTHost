@@ -8,6 +8,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/stat"
+	"log"
 	"os"
 	"strconv"
 	"sync"
@@ -175,7 +176,7 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
 		n, err := strconv.ParseInt(outtimestr, 10, 64)
 		if err == nil {
 			opt_outtime = n
-			fmt.Println("水位线超时时间", opt_outtime)
+			log.Println("水位线超时时间", opt_outtime)
 		}
 	}
 
