@@ -63,6 +63,7 @@ type Stat struct {
 	Success int64
 	Error   int64
 	CtxDone int64
+	All     int64
 	Wait    WaitMap
 }
 
@@ -70,13 +71,14 @@ func (s *Stat) Reset() {
 	atomic.StoreInt64(&s.Success, 0)
 	atomic.StoreInt64(&s.Error, 0)
 	atomic.StoreInt64(&s.CtxDone, 0)
+	atomic.StoreInt64(&s.All, 0)
 }
 
-func (s *Stat) Get() (int, int64, int64, int64) {
-	return s.Wait.Len(), atomic.LoadInt64(&s.Success), atomic.LoadInt64(&s.Error), atomic.LoadInt64(&s.CtxDone)
+func (s *Stat) Get() (int, int64, int64, int64, int64) {
+	return s.Wait.Len(), atomic.LoadInt64(&s.Success), atomic.LoadInt64(&s.Error), atomic.LoadInt64(&s.CtxDone), atomic.LoadInt64(&s.All)
 }
 
-func (s *Stat) Add(ss int64, e int64, c int64) {
+func (s *Stat) Add(ss int64, e int64, c int64, a int64) {
 	if ss != 0 {
 		atomic.AddInt64(&s.Success, ss)
 	}
@@ -85,6 +87,9 @@ func (s *Stat) Add(ss int64, e int64, c int64) {
 	}
 	if c != 0 {
 		atomic.AddInt64(&s.CtxDone, c)
+	}
+	if a != 0 {
+		atomic.AddInt64(&s.All, a)
 	}
 }
 
@@ -98,8 +103,8 @@ func init() {
 	go func() {
 		for {
 			<-time.After(time.Second * 10)
-			v1, v2, v3, v4 := Default.Get()
-			log.Printf("并发 %d,成功 %d,失败 %d, 超时 %d, 总数 %d\n", v1, v2, v3, v4, Default.Wait.Sum)
+			v1, v2, v3, v4, v5 := Default.Get()
+			log.Printf("并发 %d,成功 %d,失败 %d, 超时 %d, 总数 %d, 所有 %d\n", v1, v2, v3, v4, Default.Wait.Sum, v5)
 			Default.Reset()
 		}
 	}()
