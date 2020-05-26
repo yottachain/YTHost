@@ -1,6 +1,7 @@
 package clientStore
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -186,11 +187,14 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
 		}
 	}
 
-	log.Println("返回结果---------")
+	buf := bytes.NewBufferString("")
+
+	fmt.Fprintln(buf, "返回结果---------")
 	for _, v := range res {
-		log.Println(v)
+		fmt.Fprintln(buf, v)
 	}
-	log.Println("----------------")
+	fmt.Fprintln(buf, "-----------------")
+	log.Println(buf.String())
 
 	return res
 }

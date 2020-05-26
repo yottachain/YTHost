@@ -12,12 +12,14 @@ import (
 
 type WaitMap struct {
 	pool map[peer.ID]uint64
+	Sum  int64
 	sync.RWMutex
 }
 
 func (wm *WaitMap) Add(id peer.ID) {
 	wm.Lock()
 	defer wm.Unlock()
+	wm.Sum++
 
 	if i, ok := wm.pool[id]; ok {
 		wm.pool[id] = i + 1
@@ -29,6 +31,7 @@ func (wm *WaitMap) Add(id peer.ID) {
 func (wm *WaitMap) Sub(id peer.ID) {
 	wm.Lock()
 	defer wm.Unlock()
+	wm.Sum--
 
 	if i, ok := wm.pool[id]; ok {
 		if i-1 <= 0 {
@@ -96,7 +99,7 @@ func init() {
 		for {
 			<-time.After(time.Second * 10)
 			v1, v2, v3, v4 := Default.Get()
-			log.Printf("并发 %d,成功 %d,失败 %d, 超时 %d\n", v1, v2, v3, v4)
+			log.Printf("并发 %d,成功 %d,失败 %d, 超时 %d, 总数 %d\n", v1, v2, v3, v4, Default.Wait.Sum)
 			Default.Reset()
 		}
 	}()
