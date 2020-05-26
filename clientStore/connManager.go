@@ -186,5 +186,13 @@ func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
 		}
 	}
 
+	defer func() {
+		log.Println("返回结果---------")
+		for _, v := range res {
+			fmt.Println(v)
+		}
+		log.Println("----------------")
+	}()
+
 	return res
 }
