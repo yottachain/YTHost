@@ -74,6 +74,7 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
 	startTime := time.Now()
+	stat.Default.Add(0, 0, 0, 1)
 
 	var rpid = yc.RemotePeer().ID
 
@@ -122,17 +123,17 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	select {
 	case <-ctx.Done():
 		if id == 0xCB05 {
-			stat.Default.Add(0, 0, 1)
+			stat.Default.Add(0, 0, 1, 0)
 		}
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
 		if id == 0xCB05 {
-			stat.Default.Add(1, 0, 0)
+			stat.Default.Add(1, 0, 0, 0)
 		}
 		return rd.Data, nil
 	case err := <-errChan:
 		if id == 0xCB05 {
-			stat.Default.Add(0, 1, 0)
+			stat.Default.Add(0, 1, 0, 0)
 		}
 		return nil, err
 	}
