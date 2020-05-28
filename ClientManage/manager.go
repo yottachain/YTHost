@@ -56,3 +56,12 @@ func (mng *Manager) GetOrConnect(id peer.ID, mas []multiaddr.Multiaddr) (*client
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 	return mng.store.Get(ctx, id, mas)
 }
+
+func (mng *Manager) Keep(d time.Duration) {
+	for {
+		<-time.After(d)
+		for k, v := range mng.AB.List() {
+			mng.Connect(k, v)
+		}
+	}
+}

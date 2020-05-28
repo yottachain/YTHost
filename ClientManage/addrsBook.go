@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sync"
-	"time"
 )
 
 type AddrsBook struct {
@@ -86,13 +85,4 @@ func NewAddBookFromServer(url string) (addrsBook *AddrsBook, err error) {
 
 func NewAddrsBook() *AddrsBook {
 	return &AddrsBook{book: make(map[peer.ID][]multiaddr.Multiaddr)}
-}
-
-func (mng *Manager) Keep(d time.Duration) {
-	for {
-		<-time.After(d)
-		for k, v := range mng.AB.List() {
-			mng.Connect(k, v)
-		}
-	}
 }
