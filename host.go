@@ -247,8 +247,5 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
 	}
 	res, err := clt.SendMsg(ctx, mid, msg)
-	if err != nil {
-		hst.clientStore.Delete(pid)
-	}
 	return res, err
 }
