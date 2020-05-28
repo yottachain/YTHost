@@ -35,14 +35,16 @@ func (mng *Manager) Connect(id peer.ID, mas []multiaddr.Multiaddr) {
 	mng.store.Get(ctx, id, mas)
 }
 
-func (mng *Manager) Get(id peer.ID) (*client.YTHostClient, error) {
+func (mng *Manager) Get(id peer.ID, addrs []multiaddr.Multiaddr) (*client.YTHostClient, error) {
+	if _, ok := mng.AB.Get(id); !ok {
+		mng.AB.Add(id, addrs)
+		ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
+		return mng.store.Get(ctx, id, addrs)
+	}
 	clt, ok := mng.store.GetClient(id)
 	if ok {
 		return clt, nil
 	} else {
-		if mas, ok := mng.AB.Get(id); ok {
-			go mng.Connect(id, mas)
-		}
 		return nil, fmt.Errorf("node not available")
 	}
 }
@@ -51,13 +53,3 @@ func (mng *Manager) GetOrConnect(id peer.ID, mas []multiaddr.Multiaddr) (*client
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 	return mng.store.Get(ctx, id, mas)
 }
-
-//func (mng *Manager) Keep(d time.Duration) {
-//	for {
-//		<-time.After(d)
-//	}
-//}
-//
-//func (mng *Manager) Ping(id peer.ID) (*client.YTHostClient, error) {
-//	mng.Get()
-//}
