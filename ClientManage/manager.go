@@ -61,7 +61,7 @@ func (mng *Manager) Keep(d time.Duration) {
 	for {
 		<-time.After(d)
 		for k, v := range mng.AB.List() {
-			mng.Connect(k, v)
+			go mng.Connect(k, v)
 		}
 	}
 }
