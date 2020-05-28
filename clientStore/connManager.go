@@ -129,6 +129,10 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 	}
 }
 
+func (cs *ClientStore) Remove(id peer.ID) {
+	cs.Map.Delete(id)
+}
+
 func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
 	type Source struct {
 		ID       peer.ID

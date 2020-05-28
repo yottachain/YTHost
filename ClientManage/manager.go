@@ -45,6 +45,9 @@ func (mng *Manager) Get(id peer.ID, addrs []multiaddr.Multiaddr) (*client.YTHost
 	if ok {
 		return clt, nil
 	} else {
+		if _, ok := mng.AB.Get(id); ok {
+			mng.Connect(id, addrs)
+		}
 		return nil, fmt.Errorf("node not available")
 	}
 }
