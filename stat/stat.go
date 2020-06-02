@@ -121,7 +121,7 @@ var Default = &Stat{
 }
 
 func init() {
-	fl, _ := os.OpenFile("ythost.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	fl, _ := os.OpenFile("ythost_2020_6_2.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	log.SetOutput(fl)
 	go func() {
 		for {
