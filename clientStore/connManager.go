@@ -7,12 +7,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/client"
-	"github.com/yottachain/YTHost/stat"
-	"log"
-	"os"
-	"strconv"
 	"sync"
-	"time"
 )
 
 type ClientStore struct {
@@ -131,73 +126,4 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 
 func (cs *ClientStore) Remove(id peer.ID) {
 	cs.Map.Delete(id)
-}
-
-func (cs *ClientStore) GetOptNodes(nodes []string, optNum int) []string {
-	type Source struct {
-		ID       peer.ID
-		Duration time.Duration
-	}
-	var list []Source = make([]Source, len(nodes))
-
-	for k, v := range nodes {
-		var current Source
-		pid, err := peer.Decode(v)
-		current.ID = pid
-
-		if err == nil {
-			if ac, ok := cs.Map.Load(pid); ok {
-				client := ac.(*client.YTHostClient)
-
-				wait := stat.Default.Wait.Get(pid)
-				current.Duration = client.Sc.AvgSpeed() * time.Duration(wait)
-			}
-		}
-
-		list[k] = current
-	}
-
-	for i := 0; i < len(list); i++ {
-		for j := i; j < len(list); j++ {
-			if list[j].Duration < list[i].Duration {
-				temp := list[i]
-				list[i] = list[j]
-				list[j] = temp
-			}
-		}
-	}
-
-	var res = make([]string, optNum)
-
-	for k, v := range list[:optNum] {
-		res[k] = v.ID.Pretty()
-	}
-
-	// 补齐水位线之下的
-	var opt_outtime int64 = 9
-
-	if outtimestr, ok := os.LookupEnv("opt_outtime"); ok {
-		n, err := strconv.ParseInt(outtimestr, 10, 64)
-		if err == nil {
-			opt_outtime = n
-			log.Println("水位线超时时间", opt_outtime)
-		}
-	}
-
-	for _, v := range list[optNum+1:] {
-		if v.Duration < time.Second*time.Duration(opt_outtime) {
-			res = append(res, v.ID.Pretty())
-		}
-	}
-
-	//buf := bytes.NewBufferString("")
-	//
-	//fmt.Fprintln(buf, "返回结果---------")
-	//for _, v := range res {
-	//	fmt.Fprintln(buf, v)
-	//}
-	//fmt.Fprintln(buf, "-----------------")
-	//log.Println(buf.String())
-
-	return res
 }

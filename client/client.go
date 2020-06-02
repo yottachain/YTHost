@@ -78,7 +78,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	var rpid = yc.RemotePeer().ID
 
-	if rpid != "" && id == 0xCB05 {
+	if rpid != "" && (id == 0xCB05 || id == 0xe75c) {
 		stat.Default.Wait.Add(rpid)
 	}
 
@@ -86,7 +86,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	errChan := make(chan error)
 
 	defer func() {
-		if rpid != "" && id == 0xCB05 {
+		if rpid != "" && (id == 0xCB05 || id == 0xe75c) {
 			stat.Default.Wait.Sub(rpid)
 		}
 		if err := recover(); err != nil {
@@ -122,17 +122,17 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	select {
 	case <-ctx.Done():
-		if id == 0xCB05 {
+		if id == 0xCB05 || id == 0xe75c {
 			stat.Default.Add(0, 0, 1, 0)
 		}
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
-		if id == 0xCB05 {
+		if id == 0xCB05 || id == 0xe75c {
 			stat.Default.Add(1, 0, 0, 0)
 		}
 		return rd.Data, nil
 	case err := <-errChan:
-		if id == 0xCB05 {
+		if id == 0xCB05 || id == 0xe75c {
 			stat.Default.Add(0, 1, 0, 0)
 		}
 		return nil, err

@@ -1,6 +1,7 @@
 package stat
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"log"
@@ -10,6 +11,11 @@ import (
 	"time"
 )
 
+type OPMsg struct {
+	OP    string
+	Value uint64
+}
+
 type WaitMap struct {
 	pool map[peer.ID]uint64
 	Sum  int64
@@ -17,30 +23,36 @@ type WaitMap struct {
 }
 
 func (wm *WaitMap) Add(id peer.ID) {
-	wm.Lock()
-	defer wm.Unlock()
-	wm.Sum++
+	atomic.AddInt64(&wm.Sum, 1)
 
-	if i, ok := wm.pool[id]; ok {
+	wm.RLock()
+	i, ok := wm.pool[id]
+	wm.RUnlock()
+
+	wm.Lock()
+	if ok {
 		wm.pool[id] = i + 1
 	} else {
 		wm.pool[id] = 1
 	}
+	wm.Unlock()
 }
 
 func (wm *WaitMap) Sub(id peer.ID) {
-	wm.Lock()
-	defer wm.Unlock()
-	wm.Sum--
+	atomic.AddInt64(&wm.Sum, 1)
 
-	if i, ok := wm.pool[id]; ok {
+	wm.RLock()
+	i, ok := wm.pool[id]
+	wm.RUnlock()
+
+	if ok {
+		wm.Lock()
 		if i-1 <= 0 {
-			fmt.Println("删除")
 			delete(wm.pool, id)
 		} else {
-			fmt.Println(i - 1)
 			wm.pool[id] = i - 1
 		}
+		wm.Unlock()
 	} else {
 		fmt.Println(ok, len(wm.pool))
 	}
@@ -57,6 +69,17 @@ func (wm *WaitMap) Get(id peer.ID) uint64 {
 
 func (wm *WaitMap) Len() int {
 	return len(wm.pool)
+}
+func (wm *WaitMap) Print() {
+	buf := bytes.NewBuffer([]byte{})
+	buf.WriteString("等待统计-----------------")
+	wm.RLock()
+	for k, v := range wm.pool {
+		fmt.Fprintln(buf, k.Pretty(), v)
+	}
+	wm.RUnlock()
+	buf.WriteString("等待统计结束-----------------")
+	log.Println(buf.String())
 }
 
 type Stat struct {
@@ -104,7 +127,9 @@ func init() {
 		for {
 			<-time.After(time.Second * 10)
 			v1, v2, v3, v4, v5 := Default.Get()
-			log.Printf("并发 %d,成功 %d,失败 %d, 超时 %d, 总数 %d, 所有 %d\n", v1, v2, v3, v4, Default.Wait.Sum, v5)
+			sum := atomic.LoadInt64(&Default.Wait.Sum)
+			log.Printf("并发 %d,成功 %d,失败 %d, 超时 %d, 总数 %d, 所有 %d\n", v1, v2, v3, v4, sum, v5)
+			Default.Wait.Print()
 			Default.Reset()
 		}
 	}()
