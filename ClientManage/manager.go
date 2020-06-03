@@ -131,14 +131,13 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 		}
 	}
 
-	//buf := bytes.NewBufferString("")
-	//
-	//fmt.Fprintln(buf, "返回结果---------")
-	//for _, v := range res {
-	//	fmt.Fprintln(buf, v)
-	//}
-	//fmt.Fprintln(buf, "-----------------")
-	//log.Println(buf.String())
+	return res
+}
 
+func PA2ids(pas ...peer.AddrInfo) []string {
+	res := make([]string, len(pas))
+	for k, v := range pas {
+		res[k] = v.ID.Pretty()
+	}
 	return res
 }
