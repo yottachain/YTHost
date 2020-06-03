@@ -90,7 +90,7 @@ func (mng *Manager) GetOptNodes(optNum int, randNum int) []peer.AddrInfo {
 			client := ac.(*client.YTHostClient)
 
 			wait := stat.Default.Wait.Get(k)
-			current.Duration = client.Sc.AvgSpeed()*time.Duration(wait) + 1
+			current.Duration = client.Sc.AvgSpeed() * (time.Duration(wait) + 1)
 		}
 
 		list[i] = current
