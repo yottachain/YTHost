@@ -8,9 +8,7 @@ import (
 	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/clientStore"
 	"github.com/yottachain/YTHost/stat"
-	"log"
-	"os"
-	"strconv"
+	"math/rand"
 	"time"
 )
 
@@ -70,7 +68,7 @@ func (mng *Manager) Keep(d time.Duration) {
 	}
 }
 
-func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
+func (mng *Manager) GetOptNodes(optNum int, randNum int) []peer.AddrInfo {
 	cs := mng.store
 
 	type Source struct {
@@ -79,7 +77,7 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 		Duration time.Duration
 	}
 	var list []Source = make([]Source, len(mng.AB.List()))
-	var res = make([]peer.AddrInfo, optNum)
+	var res = make([]peer.AddrInfo, optNum+randNum)
 
 	var i = 0
 	for k, v := range mng.AB.List() {
@@ -92,7 +90,7 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 			client := ac.(*client.YTHostClient)
 
 			wait := stat.Default.Wait.Get(k)
-			current.Duration = client.Sc.AvgSpeed() * time.Duration(wait)
+			current.Duration = client.Sc.AvgSpeed()*time.Duration(wait) + 1
 		}
 
 		list[i] = current
@@ -114,21 +112,14 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 		res[k].Addrs = v.Addrs
 	}
 
-	// 补齐水位线之下的
-	var opt_outtime int64 = 9
+	for i := 0; i < randNum; i++ {
+		k := rand.Intn(randNum) + optNum
+		res[i+optNum].ID = list[k].ID
+		res[i+optNum].Addrs = list[k].Addrs
 
-	if outtimestr, ok := os.LookupEnv("opt_outtime"); ok {
-		n, err := strconv.ParseInt(outtimestr, 10, 64)
-		if err == nil {
-			opt_outtime = n
-			log.Println("水位线超时时间", opt_outtime)
-		}
-	}
-
-	for _, v := range list[optNum+1:] {
-		if v.Duration < time.Second*time.Duration(opt_outtime) {
-			res = append(res, peer.AddrInfo{v.ID, v.Addrs})
-		}
+		// 随机交换
+		j := rand.Intn(randNum + optNum - 1)
+		res[i+optNum], res[j] = res[j], res[i+optNum]
 	}
 
 	return res
