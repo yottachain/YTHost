@@ -24,7 +24,6 @@ func NewManager(store *clientStore.ClientStore) (*Manager, error) {
 	}
 
 	var mng = Manager{AB: ab, store: store}
-
 	for k, v := range mng.AB.List() {
 		go mng.Connect(k, v)
 	}
