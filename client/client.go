@@ -96,7 +96,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	go func() {
 		defer func() {
-			if id == 0xCB05 {
+			if id == 0xCB05 || id == 0xe75c {
 				yc.Sc.Push(time.Now().Sub(startTime))
 			}
 		}()
