@@ -91,6 +91,8 @@ func (mng *Manager) GetOptNodes(optNum int, randNum int) []peer.AddrInfo {
 
 			wait := stat.Default.Wait.Get(k)
 			current.Duration = client.Sc.AvgSpeed() * (time.Duration(wait) + 1)
+		} else {
+			current.Duration = time.Second * 10
 		}
 
 		list[i] = current
