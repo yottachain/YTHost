@@ -129,6 +129,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	case rd := <-resChan:
 		if id == 0xCB05 || id == 0xe75c {
 			stat.Default.Add(1, 0, 0, 0)
+			stat.Default.SMap.Add(yc.RemotePeer().ID)
 		}
 		return rd.Data, nil
 	case err := <-errChan:

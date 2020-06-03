@@ -11,11 +11,6 @@ import (
 	"time"
 )
 
-type OPMsg struct {
-	OP    string
-	Value uint64
-}
-
 type WaitMap struct {
 	pool map[peer.ID]uint64
 	Sum  int64
@@ -88,6 +83,7 @@ type Stat struct {
 	CtxDone int64
 	All     int64
 	Wait    WaitMap
+	SMap    SuccessMap
 }
 
 func (s *Stat) Reset() {
@@ -118,6 +114,7 @@ func (s *Stat) Add(ss int64, e int64, c int64, a int64) {
 
 var Default = &Stat{
 	Wait: WaitMap{pool: make(map[peer.ID]uint64)},
+	SMap: NewSuccessMap(),
 }
 
 func init() {

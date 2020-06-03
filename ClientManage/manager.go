@@ -68,67 +68,47 @@ func (mng *Manager) Keep(d time.Duration) {
 	}
 }
 
-func (mng *Manager) GetOptNodes(optNum int, randNum int) []peer.AddrInfo {
-	cs := mng.store
-
-	type Source struct {
-		ID       peer.ID
-		Addrs    []multiaddr.Multiaddr
-		Duration time.Duration
+func ids2pids(ids []string) []peer.ID {
+	pids := make([]peer.ID, len(ids))
+	for k, v := range ids {
+		pids[k], _ = peer.Decode(v)
 	}
-	var list []Source = make([]Source, len(mng.AB.List()))
-	var res = make([]peer.AddrInfo, optNum+randNum)
+	return pids
+}
 
-	var i = 0
-	for k, v := range mng.AB.List() {
+func (mng *Manager) GetOptNodes(ids []string, optNum int, randNum int) []peer.ID {
 
-		var current Source
-		current.ID = k
-		current.Addrs = v
+	pids := ids2pids(ids)
 
-		if ac, ok := cs.Map.Load(k); ok {
-			client := ac.(*client.YTHostClient)
-
-			wait := stat.Default.Wait.Get(k)
-			current.Duration = client.Sc.AvgSpeed() * (time.Duration(wait) + 1)
-		}
-
-		list[i] = current
-		i++
+	list := stat.Default.SMap.SortList(pids...)
+	if optNum+randNum > len(list) {
+		fmt.Println("选取节点超过当前节点数")
+		return nil
 	}
 
-	for i := 0; i < len(list); i++ {
-		for j := i; j < len(list); j++ {
-			if list[j].Duration < list[i].Duration {
-				temp := list[i]
-				list[i] = list[j]
-				list[j] = temp
-			}
-		}
+	var res = make([]peer.ID, optNum+randNum)
+
+	for i := 0; i < optNum; i++ {
+		res[i] = list[i]
 	}
 
-	for k, v := range list[:optNum] {
-		res[k].ID = v.ID
-		res[k].Addrs = v.Addrs
-	}
-
+	// 添加随机节点
 	for i := 0; i < randNum; i++ {
-		k := rand.Intn(randNum) + optNum
-		res[i+optNum].ID = list[k].ID
-		res[i+optNum].Addrs = list[k].Addrs
+		item := list[rand.Intn(len(list)-optNum)+optNum]
+		res[i+optNum] = item
 
-		// 随机交换
-		j := rand.Intn(randNum + optNum - 1)
-		res[i+optNum], res[j] = res[j], res[i+optNum]
+		// 随机交换位置
+		index := rand.Intn(optNum - 1)
+		res[i+optNum], res[index] = res[index], res[i+optNum]
 	}
 
 	return res
 }
 
-func PA2ids(pas ...peer.AddrInfo) []string {
+func PA2ids(pas ...peer.ID) []string {
 	res := make([]string, len(pas))
 	for k, v := range pas {
-		res[k] = v.ID.Pretty()
+		res[k] = v.Pretty()
 	}
 	return res
 }
