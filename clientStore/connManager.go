@@ -58,7 +58,7 @@ start:
 		// 如果已存在clt无法ping通,删除记录重新创建
 		c := _c.(*client.YTHostClient)
 		if c.IsClosed() || !c.Ping(ctx) {
-			c.Close()
+			//c.Close()
 			cs.Map.Delete(pid)
 			goto start
 		}
