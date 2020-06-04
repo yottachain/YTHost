@@ -7,10 +7,6 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/clientStore"
-	"github.com/yottachain/YTHost/stat"
-	"log"
-	"os"
-	"strconv"
 	"time"
 )
 
@@ -91,8 +87,7 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 		if ac, ok := cs.Map.Load(k); ok {
 			client := ac.(*client.YTHostClient)
 
-			wait := stat.Default.Wait.Get(k)
-			current.Duration = client.Sc.AvgSpeed() * time.Duration(wait)
+			current.Duration = client.Sc.AvgSpeed()
 		}
 
 		list[i] = current
@@ -102,9 +97,7 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 	for i := 0; i < len(list); i++ {
 		for j := i; j < len(list); j++ {
 			if list[j].Duration < list[i].Duration {
-				temp := list[i]
-				list[i] = list[j]
-				list[j] = temp
+				list[i], list[j] = list[j], list[i]
 			}
 		}
 	}
@@ -112,23 +105,6 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 	for k, v := range list[:optNum] {
 		res[k].ID = v.ID
 		res[k].Addrs = v.Addrs
-	}
-
-	// 补齐水位线之下的
-	var opt_outtime int64 = 9
-
-	if outtimestr, ok := os.LookupEnv("opt_outtime"); ok {
-		n, err := strconv.ParseInt(outtimestr, 10, 64)
-		if err == nil {
-			opt_outtime = n
-			log.Println("水位线超时时间", opt_outtime)
-		}
-	}
-
-	for _, v := range list[optNum+1:] {
-		if v.Duration < time.Second*time.Duration(opt_outtime) {
-			res = append(res, peer.AddrInfo{v.ID, v.Addrs})
-		}
 	}
 
 	return res
