@@ -61,10 +61,7 @@ func (sm *SuccessMap) SortList(ids ...peer.ID) []peer.ID {
 		if ok {
 			item = &s{id, successNum.GetNum()}
 		} else {
-			item = &s{id, record{
-				num:        10,
-				lastModify: time.Now(),
-			}.GetNum()}
+			item = &s{id, 150}
 		}
 
 		for k2, v2 := range list {
