@@ -3,21 +3,45 @@ package stat
 import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"sync"
+	"time"
 )
 
 type SuccessMap struct {
-	pool map[peer.ID]uint64
+	sm map[peer.ID]*record
 	sync.RWMutex
+}
+
+type record struct {
+	num        uint64
+	lastModify time.Time
+}
+
+func (r *record) Add(num uint64) {
+	if time.Now().Sub(r.lastModify) > time.Second*10 {
+		r.num = 0
+	}
+
+	r.num += num
+	r.lastModify = time.Now()
+}
+
+func (r *record) GetNum() uint64 {
+	t := time.Second*10 - time.Now().Sub(r.lastModify)
+	if t < 0 {
+		t = time.Second
+	}
+	t = t / time.Second
+	return uint64(t)*10 + r.num*5
 }
 
 func (sm *SuccessMap) Add(id peer.ID) {
 	sm.Lock()
 	defer sm.Unlock()
 
-	if v, ok := sm.pool[id]; ok {
-		sm.pool[id] = v + 1
+	if v, ok := sm.sm[id]; ok {
+		v.Add(1)
 	} else {
-		sm.pool[id] = 1
+		sm.sm[id] = &record{1, time.Now()}
 	}
 }
 
@@ -33,11 +57,14 @@ func (sm *SuccessMap) SortList(ids ...peer.ID) []peer.ID {
 	var list = make([]*s, 0)
 	for _, id := range ids {
 		var item *s
-		successNum, ok := sm.pool[id]
+		successNum, ok := sm.sm[id]
 		if ok {
-			item = &s{id, successNum}
+			item = &s{id, successNum.GetNum()}
 		} else {
-			item = &s{id, 10}
+			item = &s{id, record{
+				num:        10,
+				lastModify: time.Now(),
+			}.GetNum()}
 		}
 
 		for k2, v2 := range list {
@@ -59,5 +86,5 @@ func (sm *SuccessMap) SortList(ids ...peer.ID) []peer.ID {
 }
 
 func NewSuccessMap() SuccessMap {
-	return SuccessMap{make(map[peer.ID]uint64, 0), sync.RWMutex{}}
+	return SuccessMap{make(map[peer.ID]*record, 0), sync.RWMutex{}}
 }
