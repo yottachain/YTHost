@@ -1,6 +1,7 @@
 package client
 
 import (
+	"github.com/libp2p/go-libp2p-core/peer"
 	"log"
 	"sync"
 	"time"
@@ -66,9 +67,9 @@ func (sc *SpeedCounter) AvgSpeed() time.Duration {
 	return sc.d.GetNum()
 }
 
-func NewSpeedCounter(id string) *SpeedCounter {
+func NewSpeedCounter(id peer.ID) *SpeedCounter {
 	return &SpeedCounter{
 		d:  newDelay(0),
-		id: id,
+		id: id.Pretty(),
 	}
 }
