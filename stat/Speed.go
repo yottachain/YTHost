@@ -1,10 +1,7 @@
 package stat
 
 import (
-	"bytes"
-	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"log"
 	"sync"
 	"time"
 )
@@ -21,13 +18,13 @@ func (dly *delay) GetNum() time.Duration {
 	dly.Lock()
 	defer dly.Unlock()
 
-	buf := bytes.NewBuffer([]byte{})
-
-	fmt.Fprintf(buf, "延迟 [%s]", dly.id)
-	fmt.Fprintf(buf, "used: %dms ", dly.d.Milliseconds())
-	fmt.Fprintf(buf, "count: %d ", dly.count)
-	fmt.Fprintf(buf, "lasttime: %v ", dly.modifyTime)
-	fmt.Fprintf(buf, "next:: ")
+	//buf := bytes.NewBuffer([]byte{})
+	//
+	//fmt.Fprintf(buf, "延迟 [%s]", dly.id)
+	//fmt.Fprintf(buf, "used: %dms ", dly.d.Milliseconds())
+	//fmt.Fprintf(buf, "count: %d ", dly.count)
+	//fmt.Fprintf(buf, "lasttime: %v ", dly.modifyTime)
+	//fmt.Fprintf(buf, "next:: ")
 	//
 	if (time.Now().Sub(dly.modifyTime) > time.Second*10) && dly.count == 1 {
 		dly.d = dly.d - dly.d/10
@@ -39,12 +36,12 @@ func (dly *delay) GetNum() time.Duration {
 	}
 
 	d := dly.d
-
-	fmt.Fprintf(buf, "used: %dms ", dly.d.Milliseconds())
-	fmt.Fprintf(buf, "count: %d ", dly.count)
-	fmt.Fprintf(buf, "lasttime: %v ", dly.modifyTime)
-
-	go log.Println(buf.String())
+	//
+	//fmt.Fprintf(buf, "used: %dms ", dly.d.Milliseconds())
+	//fmt.Fprintf(buf, "count: %d ", dly.count)
+	//fmt.Fprintf(buf, "lasttime: %v ", dly.modifyTime)
+	//
+	//go log.Println(buf.String())
 	return d
 }
 
