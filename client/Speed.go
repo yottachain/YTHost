@@ -13,7 +13,7 @@ type delay struct {
 	modifyTime time.Time
 }
 
-func (dly delay) GetNum() time.Duration {
+func (dly *delay) GetNum() time.Duration {
 	if time.Now().Sub(dly.modifyTime) < time.Second*2 {
 		return dly.d
 	}
@@ -25,7 +25,7 @@ func (dly delay) GetNum() time.Duration {
 	return dly.d
 }
 
-func (dly delay) Add(d time.Duration) {
+func (dly *delay) Add(d time.Duration) {
 	dly.d += d
 	dly.count++
 
@@ -38,7 +38,7 @@ func (dly delay) Add(d time.Duration) {
 	dly.modifyTime = time.Now()
 }
 
-func (dly delay) Print(id string) {
+func (dly *delay) Print(id string) {
 	log.Printf("延迟 [%s] used %d ms, count %d \n", id, dly.d.Milliseconds(), dly.count)
 }
 

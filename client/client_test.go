@@ -2,6 +2,7 @@ package client_test
 
 import (
 	"fmt"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	host "github.com/yottachain/YTHost"
 	"github.com/yottachain/YTHost/client"
@@ -76,7 +77,7 @@ func TestClient(t *testing.T) {
 }
 
 func TestSpeedCounter_AvgSpeed(t *testing.T) {
-	sc := client.NewSpeedCounter(5)
+	sc := client.NewSpeedCounter(peer.ID("111"))
 	go func() {
 		for {
 			<-time.After(time.Second)
@@ -85,6 +86,6 @@ func TestSpeedCounter_AvgSpeed(t *testing.T) {
 	}()
 	for {
 		<-time.After(time.Second)
-		fmt.Println(sc.AvgSpeed())
+		fmt.Println(sc.AvgSpeed().Seconds())
 	}
 }
