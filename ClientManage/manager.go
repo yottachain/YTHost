@@ -97,8 +97,8 @@ func (mng *Manager) GetOptNodes(ids []string, optNum int) []string {
 
 	var res = make([]string, l)
 
-	for k, v := range list {
-		res[k] = v.ID.Pretty()
+	for i := 0; i < l; i++ {
+		res[i] = list[i].ID.Pretty()
 	}
 
 	return res
