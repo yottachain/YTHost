@@ -87,9 +87,8 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 			client := ac.(*client.YTHostClient)
 
 			current.Duration = client.Sc.AvgSpeed()
+			list = append(list, current)
 		}
-
-		list = append(list, current)
 	}
 
 	for i := 0; i < len(list); i++ {
@@ -100,7 +99,13 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 		}
 	}
 
-	for k, v := range list[:optNum] {
+	l := len(list)
+
+	if l > optNum {
+		l = optNum
+	}
+
+	for k, v := range list[:l] {
 		res[k].ID = v.ID
 		res[k].Addrs = v.Addrs
 	}
