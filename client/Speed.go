@@ -43,7 +43,7 @@ func (dly delay) Print(id string) {
 }
 
 func newDelay(d time.Duration) delay {
-	return delay{d, 0, time.Now()}
+	return delay{d, 1, time.Now()}
 }
 
 type SpeedCounter struct {
