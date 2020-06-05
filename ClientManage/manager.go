@@ -7,6 +7,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/client"
 	"github.com/yottachain/YTHost/clientStore"
+	"github.com/yottachain/YTHost/stat"
 	"time"
 )
 
@@ -66,57 +67,47 @@ func (mng *Manager) Keep(d time.Duration) {
 	}
 }
 
-func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
-	cs := mng.store
-
-	type Source struct {
+func (mng *Manager) GetOptNodes(ids []string, optNum int) []string {
+	type score struct {
 		ID       peer.ID
-		Addrs    []multiaddr.Multiaddr
 		Duration time.Duration
 	}
-	var list []Source = make([]Source, 0)
-	var res = make([]peer.AddrInfo, optNum)
 
-	for k, v := range mng.AB.List() {
-
-		var current Source
-		current.ID = k
-		current.Addrs = v
-
-		if ac, ok := cs.Map.Load(k); ok {
-			client := ac.(*client.YTHostClient)
-
-			current.Duration = client.Sc.AvgSpeed()
-			list = append(list, current)
+	var list = make([]*score, 0)
+	for _, v := range ids {
+		id, err := peer.Decode(v)
+		if err != nil {
+			continue
 		}
+		list = append(list, &score{id, stat.DefaultSpeedCounter.Get(id)})
 	}
 
-	for i := 0; i < len(list); i++ {
-		for j := i; j < len(list); j++ {
-			if list[j].Duration < list[i].Duration {
-				list[i], list[j] = list[j], list[i]
+	for k, _ := range list {
+		for i := k; i < len(list); i++ {
+			if list[k].Duration > list[i].Duration {
+				list[k], list[i] = list[i], list[k]
 			}
 		}
 	}
 
-	l := len(list)
-
+	var l = len(list)
 	if l > optNum {
 		l = optNum
 	}
 
-	for k, v := range list[:l] {
-		res[k].ID = v.ID
-		res[k].Addrs = v.Addrs
-	}
+	var res = make([]string, l)
 
-	return res
-}
-
-func PA2ids(pas ...peer.AddrInfo) []string {
-	res := make([]string, len(pas))
-	for k, v := range pas {
+	for k, v := range list {
 		res[k] = v.ID.Pretty()
 	}
+
 	return res
 }
+
+//func PA2ids(pas ...peer.AddrInfo) []string {
+//	res := make([]string, len(pas))
+//	for k, v := range pas {
+//		res[k] = v.ID.Pretty()
+//	}
+//	return res
+//}

@@ -18,7 +18,6 @@ type YTHostClient struct {
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	isClosed        bool
-	Sc              *SpeedCounter
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
@@ -62,7 +61,6 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 	yc.Client = clt
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
-	yc.Sc = NewSpeedCounter(yc.RemotePeer().ID)
 
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
@@ -73,7 +71,8 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
-	startTime := time.Now()
+	var startTime = time.Now()
+
 	stat.Default.Add(0, 0, 0, 1)
 
 	var rpid = yc.RemotePeer().ID
@@ -95,9 +94,10 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	}()
 
 	go func() {
+
 		defer func() {
-			if id == 0xCB05 {
-				yc.Sc.Push(time.Now().Sub(startTime))
+			if id == 0xCB05 || id == 0xe75c {
+				stat.DefaultSpeedCounter.Push(yc.RemotePeer().ID, time.Now().Sub(startTime))
 			}
 		}()
 
