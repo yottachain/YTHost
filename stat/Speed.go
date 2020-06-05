@@ -30,10 +30,10 @@ func (dly *delay) GetNum() time.Duration {
 	fmt.Fprintf(buf, "next:: ")
 
 	if (time.Now().Sub(dly.modifyTime) > time.Second*10) && dly.count == 1 {
-		dly.d = dly.d / 2
+		dly.d = dly.d - dly.d/10
 		dly.modifyTime = time.Now()
 
-	} else if (time.Now().Sub(dly.modifyTime) > time.Second*2) && dly.count > 1 {
+	} else if time.Now().Sub(dly.modifyTime) > time.Second*2 {
 		dly.d = dly.d / time.Duration(dly.count)
 		dly.count = 1
 		dly.modifyTime = time.Now()
