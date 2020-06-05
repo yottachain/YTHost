@@ -74,10 +74,9 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 		Addrs    []multiaddr.Multiaddr
 		Duration time.Duration
 	}
-	var list []Source = make([]Source, len(mng.AB.List()))
+	var list []Source = make([]Source, 0)
 	var res = make([]peer.AddrInfo, optNum)
 
-	var i = 0
 	for k, v := range mng.AB.List() {
 
 		var current Source
@@ -90,8 +89,7 @@ func (mng *Manager) GetOptNodes(optNum int) []peer.AddrInfo {
 			current.Duration = client.Sc.AvgSpeed()
 		}
 
-		list[i] = current
-		i++
+		list = append(list, current)
 	}
 
 	for i := 0; i < len(list); i++ {
