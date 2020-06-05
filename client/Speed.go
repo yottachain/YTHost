@@ -1,8 +1,8 @@
 package client
 
 import (
+	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"log"
 	"sync"
 	"time"
 )
@@ -39,7 +39,7 @@ func (dly *delay) Add(d time.Duration) {
 }
 
 func (dly *delay) Print(id string) {
-	log.Printf("延迟 [%s] used %d ms, count %d \n", id, dly.d.Milliseconds(), dly.count)
+	fmt.Printf("延迟 [%s] used %d ms, count %d \n", id, dly.d.Milliseconds(), dly.count)
 }
 
 func newDelay(d time.Duration) delay {
