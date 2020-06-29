@@ -1,8 +1,10 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -38,6 +40,7 @@ type host struct {
 	srv      *rpc.Server
 	service.HandlerMap
 	clientStore *clientStore.ClientStore
+	httpClient  *http.Client
 }
 
 func NewHost(options ...option.Option) (*host, error) {
@@ -72,6 +75,8 @@ func NewHost(options ...option.Option) (*host, error) {
 			}
 		}()
 	}
+
+	hst.httpClient = &http.Client{}
 
 	return hst, nil
 }
@@ -109,6 +114,34 @@ func (hst *host) Accept() {
 		ac.SetOuttime(time.Minute * 5)
 		go hst.srv.ServeConn(ac)
 	}
+}
+
+func (h *host) SendHTTPMsg(id peer.ID, ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byte, error) {
+	addr, err := ma.ValueForProtocol(multiaddr.P_DNS4)
+	if err != nil {
+		ip, err := ma.ValueForProtocol(multiaddr.P_IP4)
+		if err != nil {
+			return nil, err
+		}
+		addr = ip
+	}
+	port, err := ma.ValueForProtocol(multiaddr.P_TCP)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%s/msg/%d", addr, port, mid), bytes.NewBuffer(msg))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := h.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	respData, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+
+	return respData, err
 }
 
 func (hst *host) Listenner() mnet.Listener {

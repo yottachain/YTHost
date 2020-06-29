@@ -1,7 +1,6 @@
 package httpHost
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	manet "github.com/multiformats/go-multiaddr-net"
@@ -128,32 +127,6 @@ func (h host) ClientStore() *clientStore.ClientStore {
 
 func (h host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error) {
 	panic("implement me")
-}
-
-func (h host) SendHTTPMsg(id peer.ID, addr multiaddr.Multiaddr, mid int32, msg []byte) ([]byte, error) {
-
-	ip, err := addr.ValueForProtocol(multiaddr.P_IP4)
-	if err != nil {
-		return nil, err
-	}
-	port, err := addr.ValueForProtocol(multiaddr.P_TCP)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%s/msg/%d", ip, port, mid), bytes.NewBuffer(msg))
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := h.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	respData, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
-
-	return respData, err
 }
 
 func NewHost(options ...option.Option) (*host, error) {

@@ -1,4 +1,4 @@
-package hostInterface
+package YTinterface
 
 import (
 	"context"
