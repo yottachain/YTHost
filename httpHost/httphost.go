@@ -1,12 +1,14 @@
 package httpHost
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	manet "github.com/multiformats/go-multiaddr-net"
 	"github.com/yottachain/YTHost/option"
 	"io/ioutil"
 	"net/http"
+	"sync"
 	"time"
 
 	_ "net/http/pprof"
@@ -27,6 +29,7 @@ type host struct {
 	listenner manet.Listener
 	client    *http.Client
 	transport *Transport
+	sync.Map
 }
 
 func (h *host) Accept() {
@@ -35,7 +38,7 @@ func (h *host) Accept() {
 	http.Serve(hlis, nil)
 }
 
-func (h host) Addrs() []multiaddr.Multiaddr {
+func (h *host) Addrs() []multiaddr.Multiaddr {
 	port, err := h.listenner.Multiaddr().ValueForProtocol(multiaddr.P_TCP)
 	if err != nil {
 		return nil
@@ -67,15 +70,16 @@ func (h host) Server() *rpc.Server {
 	panic("implement me")
 }
 
-func (h host) Config() *config.Config {
+func (h *host) Config() *config.Config {
 	return h.cfg
 }
 
-func (h host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-	panic("implement me")
+func (h *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
+	h.Store(pid, mas)
+	return nil, nil
 }
 
-func (h host) RegisterHandler(id int32, handlerFunc service.Handler) error {
+func (h *host) RegisterHandler(id int32, handlerFunc service.Handler) error {
 	h.registerHttpHandler(fmt.Sprintf("/msg/%d", id), handlerFunc, id)
 	return nil
 }
@@ -105,11 +109,11 @@ func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int
 	})
 }
 
-func (h host) RegisterGlobalMsgHandler(handlerFunc service.Handler) {
+func (h *host) RegisterGlobalMsgHandler(handlerFunc service.Handler) {
 	h.registerHttpHandler("/", handlerFunc, 0)
 }
 
-func (h host) RemoveHandler(id int32) {
+func (h *host) RemoveHandler(id int32) {
 	panic("implement me")
 }
 
@@ -127,6 +131,35 @@ func (h host) ClientStore() *clientStore.ClientStore {
 
 func (h host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error) {
 	panic("implement me")
+}
+
+func (h *host) SendHTTPMsg(id peer.ID, ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byte, error) {
+	addr, err := ma.ValueForProtocol(multiaddr.P_DNS4)
+	if err != nil {
+		ip, err := ma.ValueForProtocol(multiaddr.P_IP4)
+		if err != nil {
+			return nil, err
+		}
+		addr = ip
+	}
+	port, err := ma.ValueForProtocol(multiaddr.P_TCP)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%s/msg/%d", addr, port, mid), bytes.NewBuffer(msg))
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	respData, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+
+	return respData, err
 }
 
 func NewHost(options ...option.Option) (*host, error) {
