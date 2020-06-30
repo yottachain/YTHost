@@ -8,7 +8,14 @@ import (
 	"github.com/yottachain/YTHost/option"
 )
 
-func NewHost(mas []multiaddr.Multiaddr, opts ...option.Option) (res []YTinterface.Host) {
+type HostPool struct {
+	hosts []YTinterface.Host
+}
+
+func NewHost(mas []multiaddr.Multiaddr, opts ...option.Option) *HostPool {
+	var hp HostPool
+
+	var res []YTinterface.Host
 	for _, ma := range mas {
 		opts = append(opts, option.ListenAddr(ma))
 		if _, err := ma.ValueForProtocol(multiaddr.P_HTTP); err == nil {
@@ -16,16 +23,16 @@ func NewHost(mas []multiaddr.Multiaddr, opts ...option.Option) (res []YTinterfac
 			hst, err := httpHost.NewHost(opts...)
 			if err != nil {
 				res = append(res, hst)
-				return
+				hp.hosts = res
 			}
 		} else {
 			hst, err := host.NewHost(opts...)
 			if err != nil {
 				res = append(res, hst)
-				return
+				hp.hosts = res
 			}
 		}
 	}
 
-	return
+	return &hp
 }
