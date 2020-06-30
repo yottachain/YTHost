@@ -79,7 +79,7 @@ func (hp *HostPool) Addrs() []multiaddr.Multiaddr {
 
 func (hp *HostPool) Connect(ctx context.Context, pid peer.ID, ma multiaddr.Multiaddr) {
 	if _, err := ma.ValueForProtocol(multiaddr.P_HTTP); err != nil {
-		//clt := httpHost.NewClient(peer.AddrInfo{hp.cfg.ID,[]multiaddr.Multiaddr{}})
+		clt := httpHost.NewClient(peer.AddrInfo{hp.cfg.ID, []multiaddr.Multiaddr{}}, peer.AddrInfo{hp.cfg.ID, []multiaddr.Multiaddr{}})
 	}
 }
 
