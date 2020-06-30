@@ -13,8 +13,8 @@ import (
 
 type Client struct {
 	*http.Client
-	localPeerInfo  *peer.AddrInfo
-	remotePeerInfo *peer.AddrInfo
+	localPeerInfo  peer.AddrInfo
+	remotePeerInfo peer.AddrInfo
 }
 
 func (clt *Client) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
@@ -51,12 +51,20 @@ func (clt *Client) SendHTTPMsg(id peer.ID, ma multiaddr.Multiaddr, mid int32, ms
 }
 
 func (clt *Client) RemotePeer() peer.AddrInfo {
-	return *clt.remotePeerInfo
+	return clt.remotePeerInfo
 }
 func (clt *Client) LocalPeer() peer.AddrInfo {
-	return *clt.localPeerInfo
+	return clt.localPeerInfo
 }
 
 func (clt *Client) RemotePeerPubkey() crypto.PubKey {
 	return nil
+}
+
+func NewClient(localPeer peer.AddrInfo, remotePeer peer.AddrInfo) *Client {
+	return &Client{
+		&http.Client{},
+		localPeer,
+		remotePeer,
+	}
 }
