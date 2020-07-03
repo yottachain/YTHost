@@ -116,7 +116,7 @@ func (hst *host) Accept() {
 	}
 }
 
-func (h *host) SendHTTPMsg(id peer.ID, ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byte, error) {
+func (h *host) SendHTTPMsg(ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byte, error) {
 	addr, err := ma.ValueForProtocol(multiaddr.P_DNS4)
 	if err != nil {
 		ip, err := ma.ValueForProtocol(multiaddr.P_IP4)
@@ -191,7 +191,6 @@ func (hst *host) Addrs() []multiaddr.Multiaddr {
 
 // Connect 连接远程节点
 func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-
 	conn, err := hst.connect(ctx, pid, mas)
 	if err != nil {
 		return nil, err
@@ -206,6 +205,18 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		return nil, err
 	}
 	return ytclt, nil
+}
+
+func (hst *host)SendMsgAuto(ctx context.Context, pid peer.ID,mid int32,  ma multiaddr.Multiaddr,msg []byte) ([]byte,error) {
+	if _,err:=ma.ValueForProtocol(multiaddr.P_HTTP);err ==nil {
+		return hst.SendHTTPMsg(ma,mid,msg)
+	} else {
+		clt,err :=hst.clientStore.Get(ctx,pid,[]multiaddr.Multiaddr{ma})
+		if err != nil {
+			return nil,err
+		}
+		return clt.SendMsg(ctx,mid,msg)
+	}
 }
 
 func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (mnet.Conn, error) {

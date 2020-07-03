@@ -28,7 +28,7 @@ type host struct {
 	cfg       *config.Config
 	listenner manet.Listener
 	client    *http.Client
-	transport *Transport
+	//transport *Transport
 	sync.Map
 }
 
@@ -190,7 +190,7 @@ func NewHost(options ...option.Option) (*host, error) {
 
 	hst.client = &http.Client{}
 	hst.client.Timeout = time.Second * 30
-	hst.client.Transport = hst.transport
+	//hst.client.Transport = hst.transport
 
 	return hst, nil
 }
