@@ -7,7 +7,7 @@ import (
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/multiformats/go-multiaddr"
 	host "github.com/yottachain/YTHost"
-	. "github.com/yottachain/YTHost/hostInterface"
+	. "github.com/yottachain/YTHost/interface"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/service"
 	"math/rand"
