@@ -367,6 +367,17 @@ func TestDnsMa(t *testing.T) {
 	}
 }
 
+func TestHTTPMa(t *testing.T) {
+	ma, err := multiaddr.NewMultiaddr("/dns4/www.baidu.com/tcp/9999")
+	if err != nil {
+		t.Fatal(err)
+	} else {
+		t.Log(ma)
+		v,e:=ma.ValueForProtocol(multiaddr.P_HTTP)
+		fmt.Println(v,e)
+	}
+}
+
 ////测试多连接
 //func TestMutlConn(t *testing.T) {
 //	mastr := fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", 9000)

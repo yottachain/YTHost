@@ -101,6 +101,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	select {
 	case <-ctx.Done():
+		yc.Close()
 		return nil, fmt.Errorf("ctx time out")
 	case rd := <-resChan:
 		return rd.Data, nil
