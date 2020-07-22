@@ -5,7 +5,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/peerInfo"
-	"log"
 	"time"
 )
 
@@ -73,10 +72,6 @@ func (ms *MsgService) Ping(req string, res *string) error {
 }
 
 func (ms *MsgService) HandleMsg(req Request, data *Response) error {
-	log.Printf("[YTHost] receive msg:%x size %d\n",req.MsgId,len(req.ReqData))
-	defer func() {
-		log.Printf("[YTHost] reply msg:%x size %d\n",req.MsgId,len(data.Data))
-	}()
 	if ms.Handler == nil {
 		return fmt.Errorf("no handler %x", req.MsgId)
 	}
