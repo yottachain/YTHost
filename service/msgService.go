@@ -74,7 +74,9 @@ func (ms *MsgService) Ping(req string, res *string) error {
 
 func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 	log.Printf("[YTHost] receive msg:%x size %d\n",req.MsgId,len(req.ReqData))
-	defer log.Printf("[YTHost] reply msg:%x size %d\n",req.MsgId,len(data.Data))
+	defer func() {
+		log.Printf("[YTHost] reply msg:%x size %d\n",req.MsgId,len(data.Data))
+	}()
 	if ms.Handler == nil {
 		return fmt.Errorf("no handler %x", req.MsgId)
 	}
