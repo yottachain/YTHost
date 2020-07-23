@@ -10,7 +10,7 @@ import (
 
 func main()  {
 	hst,_:=host.NewHost()
-	ma,_ := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/9002/http")
+	ma,_ := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/9004/http")
 	res,err:=hst.SendMsgAuto(context.Background(),peer.ID("1111"),0x1c,ma,[]byte{22,33})
 	fmt.Println(res,err)
 }

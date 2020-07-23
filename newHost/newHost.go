@@ -48,13 +48,13 @@ func NewHost(mas []multiaddr.Multiaddr, opts ...option.Option) *HostPool {
 		if _, err := ma.ValueForProtocol(multiaddr.P_HTTP); err == nil {
 
 			hst, err := httpHost.NewHost(opts...)
-			if err != nil {
+			if err == nil {
 				res = append(res, hst)
 				hp.Hosts = res
 			}
 		} else {
 			hst, err := host.NewHost(opts...)
-			if err != nil {
+			if err == nil {
 				res = append(res, hst)
 				hp.Hosts = res
 			}
