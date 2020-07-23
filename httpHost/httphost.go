@@ -133,6 +133,10 @@ func (h host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) (
 	panic("implement me")
 }
 
+func (hst *host)SendMsgAuto(ctx context.Context, pid peer.ID,mid int32,  ma multiaddr.Multiaddr,msg []byte) ([]byte,error) {
+	panic("implement me")
+}
+
 func (h *host) SendHTTPMsg(id peer.ID, ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byte, error) {
 	addr, err := ma.ValueForProtocol(multiaddr.P_DNS4)
 	if err != nil {
