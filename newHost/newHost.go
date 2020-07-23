@@ -11,12 +11,12 @@ import (
 )
 
 type HostPool struct {
-	hosts    []YTinterface.Host
+	Hosts    []YTinterface.Host
 	addrbook sync.Map
 }
 
 func (hp *HostPool) RegisterHandler(id int32, handlerFunc service.Handler) error {
-	for _, v := range hp.hosts {
+	for _, v := range hp.Hosts {
 		err := v.RegisterHandler(id, handlerFunc)
 		if err != nil {
 			return err
@@ -25,8 +25,15 @@ func (hp *HostPool) RegisterHandler(id int32, handlerFunc service.Handler) error
 	return nil
 }
 
+func (hp *HostPool) RegisterGlobalMsgHandler(handlerFunc service.Handler) error {
+	for _, v := range hp.Hosts {
+		v.RegisterGlobalMsgHandler(handlerFunc)
+	}
+	return nil
+}
+
 func (hp *HostPool) Accept()  {
-	for _, v := range hp.hosts {
+	for _, v := range hp.Hosts {
 		go v.Accept()
 	}
 }
@@ -43,13 +50,13 @@ func NewHost(mas []multiaddr.Multiaddr, opts ...option.Option) *HostPool {
 			hst, err := httpHost.NewHost(opts...)
 			if err != nil {
 				res = append(res, hst)
-				hp.hosts = res
+				hp.Hosts = res
 			}
 		} else {
 			hst, err := host.NewHost(opts...)
 			if err != nil {
 				res = append(res, hst)
-				hp.hosts = res
+				hp.Hosts = res
 			}
 		}
 	}

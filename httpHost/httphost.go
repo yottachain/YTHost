@@ -98,7 +98,7 @@ func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int
 			writer.WriteHeader(500)
 			fmt.Fprintln(writer, "get pubkey error:", err.Error())
 		}
-
+		fmt.Sscanf(request.URL.String(),"/msg/%d",&id)
 		res, err := handlerFunc(reqData, service.Head{MsgId: id, RemotePeerID: h.cfg.ID, RemoteAddrs: h.Addrs(), RemotePubKey: pk})
 		if err != nil {
 			writer.WriteHeader(500)
@@ -110,7 +110,7 @@ func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int
 }
 
 func (h *host) RegisterGlobalMsgHandler(handlerFunc service.Handler) {
-	h.registerHttpHandler("/", handlerFunc, 0)
+	h.registerHttpHandler("/msg/", handlerFunc, 0)
 }
 
 func (h *host) RemoveHandler(id int32) {
