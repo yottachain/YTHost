@@ -208,6 +208,7 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 }
 
 func (hst *host)SendMsgAuto(ctx context.Context, pid peer.ID,mid int32,  ma multiaddr.Multiaddr,msg []byte) ([]byte,error) {
+	log.Printf("[YTHost]mid %x, buf len %d\n",mid,len(msg))
 	if _,err:=ma.ValueForProtocol(multiaddr.P_HTTP);err ==nil {
 		return hst.SendHTTPMsg(ma,mid,msg)
 	} else {
