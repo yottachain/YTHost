@@ -45,13 +45,13 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	var tryCount int
 	const max_try_count = 5
 
-	//cs.Lock()
+	cs.Lock()
 	idLock, ok := cs.IdLockMap[pid]
 	if !ok {
 		cs.IdLockMap[pid] = sync.Mutex{}
 		idLock, _ = cs.IdLockMap[pid]
 	}
-	//cs.Unlock()
+	cs.Unlock()
 
 	idLock.Lock()
 	defer idLock.Unlock()
@@ -137,7 +137,7 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {
 	return &ClientStore{
 		connFunc,
-		make(chan struct{}, 1000),
+		make(chan struct{}, 10000),
 		sync.Map{},
 		sync.Mutex{},
 		sync.Map{},
