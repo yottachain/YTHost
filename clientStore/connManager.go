@@ -7,8 +7,42 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/client"
+	"os"
+	"strconv"
 	"sync"
+	"time"
 )
+
+var ppi int	//
+var psi int	//间隔多久没有发送消息会关闭链接
+
+func init() {
+	spi := os.Getenv("P2P_PING_INTERVAL")
+	//ppi = 60000
+	if spi == "" {
+		ppi = 20000
+	}else {
+		pi, err := strconv.Atoi(spi)
+		if err != nil {
+			ppi = 20000
+		}else {
+			ppi = pi
+		}
+	}
+
+	ssi := os.Getenv("P2P_SEND_MAX_INTERVAL")
+	//psi = 300000
+	if ssi == "" {
+		psi = 60000
+	}else {
+		si, err := strconv.Atoi(ssi)
+		if err != nil {
+			psi = 60000
+		}else {
+			psi = si
+		}
+	}
+}
 
 type ClientStore struct {
 	connect func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)
@@ -17,6 +51,7 @@ type ClientStore struct {
 	sync.Mutex
 	MtxMap sync.Map
 	IdLockMap map[peer.ID] sync.Mutex
+	IdTimeMap map[peer.ID] time.Time
 }
 
 // Get 获取一个客户端，如果没有，建立新的客户端连接
@@ -35,6 +70,8 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	defer func() {
 		<-cs.q
 	}()
+
+	cs.IdTimeMap[pid] = time.Now()
 
 	//actul, _ := cs.MtxMap.LoadOrStore(pid, &sync.Mutex{})
 	//mux := actul.(*sync.Mutex)
@@ -121,6 +158,8 @@ func (cs *ClientStore) Close(pid peer.ID) error {
 }
 
 func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
+	//更新一下当前发送的时间
+	cs.IdTimeMap[pid] = time.Now()
 
 	_clt, ok := cs.Map.Load(pid)
 	if ok {
@@ -134,13 +173,52 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 //func (cs *ClientStore) Len() int {
 //}
 
+func (cs *ClientStore) PongDetect() {
+	f := func(k, v interface{}) bool {
+		c := v.(*client.YTHostClient)
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			fmt.Printf("heartbeat ping pid=%s\n", peer.Encode(k.(peer.ID)))
+			if !c.Ping(ctx) {
+				fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
+				_ = c.Close()
+				cs.Map.Delete(k.(peer.ID))
+				time.Now()
+			}
+		}()
+
+		sOutTime, ok := cs.IdTimeMap[k.(peer.ID)]
+		if ok {
+			if time.Now().Sub(sOutTime).Milliseconds() >  int64(psi) {
+				fmt.Printf("No message sent in INTERVAL %d pid=%s\n", psi, peer.Encode(k.(peer.ID)))
+				_ = c.Close()
+				cs.Map.Delete(k.(peer.ID))
+			}
+		}
+
+		return true
+	}
+
+	for {
+		<- time.After(time.Duration(ppi)*time.Millisecond)
+		fmt.Printf("pong start %d\n", ppi)
+		cs.Map.Range(f)
+	}
+}
+
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {
-	return &ClientStore{
+	cs := &ClientStore{
 		connFunc,
 		make(chan struct{}, 10000),
 		sync.Map{},
 		sync.Mutex{},
 		sync.Map{},
 		make(map[peer.ID] sync.Mutex),
+		make(map[peer.ID] time.Time),
 	}
+
+	go cs.PongDetect()
+
+	return cs
 }
