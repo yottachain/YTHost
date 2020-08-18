@@ -16,6 +16,7 @@ type ClientStore struct {
 	sync.Map
 	sync.Mutex
 	MtxMap sync.Map
+	IdLockMap map[peer.ID] sync.Mutex
 }
 
 // Get 获取一个客户端，如果没有，建立新的客户端连接
@@ -43,6 +44,17 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	// 尝试次数
 	var tryCount int
 	const max_try_count = 5
+
+	cs.Lock()
+	idLock, ok := cs.IdLockMap[pid]
+	if !ok {
+		cs.IdLockMap[pid] = sync.Mutex{}
+		idLock, _ = cs.IdLockMap[pid]
+	}
+	cs.Unlock()
+
+	idLock.Lock()
+	defer idLock.Unlock()
 
 	// 取已存在clt
 start:
@@ -128,5 +140,6 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		sync.Map{},
 		sync.Mutex{},
 		sync.Map{},
+		make(map[peer.ID] sync.Mutex),
 	}
 }
