@@ -71,7 +71,6 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 		<-cs.q
 	}()
 
-	cs.IdTimeMap[pid] = time.Now()
 
 	//actul, _ := cs.MtxMap.LoadOrStore(pid, &sync.Mutex{})
 	//mux := actul.(*sync.Mutex)
@@ -83,6 +82,7 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	const max_try_count = 5
 
 	cs.Lock()
+	cs.IdTimeMap[pid] = time.Now()
 	idLock, ok := cs.IdLockMap[pid]
 	if !ok {
 		cs.IdLockMap[pid] = sync.Mutex{}
@@ -159,7 +159,9 @@ func (cs *ClientStore) Close(pid peer.ID) error {
 
 func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 	//更新一下当前发送的时间
+	cs.Lock()
 	cs.IdTimeMap[pid] = time.Now()
+	cs.Unlock()
 
 	_clt, ok := cs.Map.Load(pid)
 	if ok {
