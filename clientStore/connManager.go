@@ -160,14 +160,14 @@ func (cs *ClientStore) PongDetect() {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			fmt.Printf("heartbeat ping pid=%s\n", peer.Encode(k.(peer.ID)))
-			if !c.Ping(ctx) {
+			if !c.Ping(ctx) && !c.IsUsed() {
 				fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
 				return
 			}
 
-			if c.IsconnTimeOut() {
+			if c.IsconnTimeOut() && !c.IsUsed() {
 				fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))

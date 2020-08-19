@@ -10,6 +10,7 @@ import (
 	"net/rpc"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"time"
 )
 
@@ -36,6 +37,7 @@ type YTHostClient struct {
 	localPeerPubKey []byte
 	isClosed        bool
 	lastSendTime	time.Time
+	uses  			int32
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
@@ -80,6 +82,7 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
 	yc.lastSendTime = time.Now()
+	yc.uses = 0
 
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
@@ -98,9 +101,11 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 		if err := recover(); err != nil {
 			errChan <- err.(error)
 		}
+		atomic.AddInt32(&yc.uses, -1)
 	}()
 
 	yc.lastSendTime = time.Now()
+	atomic.AddInt32(&yc.uses, 1)
 
 	go func() {
 		var res service.Response
@@ -182,5 +187,13 @@ func (yc *YTHostClient) IsconnTimeOut() bool {
 		return true
 	}else {
 		return false
+	}
+}
+
+func (yc *YTHostClient) IsUsed() bool {
+	if atomic.LoadInt32(&yc.uses) == 0 {
+		return false
+	}else {
+		return true
 	}
 }
