@@ -194,6 +194,7 @@ func (cs *ClientStore) PongDetect() {
 				fmt.Printf("No message sent in INTERVAL %d pid=%s\n", psi, peer.Encode(k.(peer.ID)))
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
+				delete(cs.IdTimeMap, k.(peer.ID))
 			}
 		}
 
