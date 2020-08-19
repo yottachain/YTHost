@@ -8,7 +8,26 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/service"
 	"net/rpc"
+	"os"
+	"strconv"
+	"time"
 )
+
+var psi int
+
+func init() {
+	ssi := os.Getenv("P2P_SEND_MAX_INTERVAL")
+	if ssi == "" {
+		psi = 60000
+	}else {
+		si, err := strconv.Atoi(ssi)
+		if err != nil {
+			psi = 60000
+		}else {
+			psi = si
+		}
+	}
+}
 
 type YTHostClient struct {
 	*rpc.Client
@@ -16,6 +35,7 @@ type YTHostClient struct {
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	isClosed        bool
+	lastSendTime	time.Time
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
@@ -78,6 +98,8 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 			errChan <- err.(error)
 		}
 	}()
+
+	yc.lastSendTime = time.Now()
 
 	go func() {
 		var res service.Response
@@ -152,4 +174,12 @@ func (yc *YTHostClient) IsClosed() bool {
 func (yc *YTHostClient) SendMsgClose(ctx context.Context, id int32, data []byte) ([]byte, error) {
 	defer yc.Close()
 	return yc.SendMsg(ctx, id, data)
+}
+
+func (yc *YTHostClient) IsconnTimeOut() bool {
+	if time.Now().Sub(yc.lastSendTime).Milliseconds() > int64(psi) {
+		return true
+	}else {
+		return false
+	}
 }

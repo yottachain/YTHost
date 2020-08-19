@@ -14,7 +14,6 @@ import (
 )
 
 var ppi int	//
-var psi int	//间隔多久没有发送消息会关闭链接
 
 func init() {
 	spi := os.Getenv("P2P_PING_INTERVAL")
@@ -29,19 +28,6 @@ func init() {
 			ppi = pi
 		}
 	}
-
-	ssi := os.Getenv("P2P_SEND_MAX_INTERVAL")
-	//psi = 300000
-	if ssi == "" {
-		psi = 60000
-	}else {
-		si, err := strconv.Atoi(ssi)
-		if err != nil {
-			psi = 60000
-		}else {
-			psi = si
-		}
-	}
 }
 
 type ClientStore struct {
@@ -51,7 +37,6 @@ type ClientStore struct {
 	sync.Mutex
 	MtxMap sync.Map
 	IdLockMap map[peer.ID] sync.Mutex
-	IdTimeMap map[peer.ID] time.Time
 }
 
 // Get 获取一个客户端，如果没有，建立新的客户端连接
@@ -81,12 +66,6 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	const max_try_count = 5
 
 	cs.Lock()
-	_, ok := cs.IdTimeMap[pid]
-	if !ok {
-		cs.IdTimeMap[pid] = time.Time{}
-	}
-	cs.IdTimeMap[pid] = time.Now()
-
 	idLock, ok := cs.IdLockMap[pid]
 	if !ok {
 		cs.IdLockMap[pid] = sync.Mutex{}
@@ -162,11 +141,6 @@ func (cs *ClientStore) Close(pid peer.ID) error {
 }
 
 func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
-	//更新一下当前发送的时间
-	//cs.Lock()
-	//cs.IdTimeMap[pid] = time.Now()
-	//cs.Unlock()
-
 	_clt, ok := cs.Map.Load(pid)
 	if ok {
 		clt := _clt.(*client.YTHostClient)
@@ -190,18 +164,15 @@ func (cs *ClientStore) PongDetect() {
 				fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
+				return
 			}
-		}()
 
-		sOutTime, ok := cs.IdTimeMap[k.(peer.ID)]
-		if ok {
-			if time.Now().Sub(sOutTime).Milliseconds() >  int64(psi) {
-				fmt.Printf("No message sent in INTERVAL %d pid=%s\n", psi, peer.Encode(k.(peer.ID)))
+			if c.IsconnTimeOut() {
+				fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
-				delete(cs.IdTimeMap, k.(peer.ID))
 			}
-		}
+		}()
 
 		return true
 	}
@@ -221,7 +192,6 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		sync.Mutex{},
 		sync.Map{},
 		make(map[peer.ID] sync.Mutex),
-		make(map[peer.ID] time.Time),
 	}
 
 	go cs.PongDetect()
