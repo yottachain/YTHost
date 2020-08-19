@@ -65,11 +65,10 @@ func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 }
 
 func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-	cs.q <- struct {
-	}{}
-	defer func() {
-		<-cs.q
-	}()
+	//cs.q <- struct {}{}
+	//defer func() {
+	//	<-cs.q
+	//}()
 
 
 	//actul, _ := cs.MtxMap.LoadOrStore(pid, &sync.Mutex{})
@@ -186,7 +185,6 @@ func (cs *ClientStore) PongDetect() {
 				fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
-				time.Now()
 			}
 		}()
 
