@@ -51,7 +51,7 @@ type ClientStore struct {
 	sync.Mutex
 	MtxMap sync.Map
 	IdLockMap map[peer.ID] sync.Mutex
-	IdTimeMap map[peer.ID] time.Time
+	IdTimeMap map[peer.ID] *time.Time
 }
 
 // Get 获取一个客户端，如果没有，建立新的客户端连接
@@ -81,7 +81,7 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	const max_try_count = 5
 
 	cs.Lock()
-	cs.IdTimeMap[pid] = time.Now()
+	*cs.IdTimeMap[pid] = time.Now()
 	idLock, ok := cs.IdLockMap[pid]
 	if !ok {
 		cs.IdLockMap[pid] = sync.Mutex{}
@@ -190,7 +190,7 @@ func (cs *ClientStore) PongDetect() {
 
 		sOutTime, ok := cs.IdTimeMap[k.(peer.ID)]
 		if ok {
-			if time.Now().Sub(sOutTime).Milliseconds() >  int64(psi) {
+			if time.Now().Sub(*sOutTime).Milliseconds() >  int64(psi) {
 				fmt.Printf("No message sent in INTERVAL %d pid=%s\n", psi, peer.Encode(k.(peer.ID)))
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
@@ -216,7 +216,7 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		sync.Mutex{},
 		sync.Map{},
 		make(map[peer.ID] sync.Mutex),
-		make(map[peer.ID] time.Time),
+		make(map[peer.ID] *time.Time),
 	}
 
 	go cs.PongDetect()
