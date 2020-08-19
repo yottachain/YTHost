@@ -81,6 +81,10 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	const max_try_count = 5
 
 	cs.Lock()
+	_, ok := cs.IdTimeMap[pid]
+	if !ok {
+		cs.IdTimeMap[pid] = &time.Time{}
+	}
 	*cs.IdTimeMap[pid] = time.Now()
 	idLock, ok := cs.IdLockMap[pid]
 	if !ok {
