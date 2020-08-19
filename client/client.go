@@ -79,6 +79,7 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostCl
 	yc.Client = clt
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
+	yc.lastSendTime = time.Now()
 
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
