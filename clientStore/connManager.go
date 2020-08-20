@@ -157,21 +157,36 @@ func (cs *ClientStore) PongDetect() {
 	f := func(k, v interface{}) bool {
 		c := v.(*client.YTHostClient)
 		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			fmt.Printf("heartbeat ping pid=%s\n", peer.Encode(k.(peer.ID)))
-			if !c.Ping(ctx) && !c.IsUsed() {
+			if c.IsconnTimeOut() && !c.IsUsed() {
+				fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
+				_ = c.Close()
+				cs.Map.Delete(k.(peer.ID))
+			}
+
+			var pongs = 3
+			var pstatus bool
+			for i := 0; i < pongs; i++ {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if !c.Ping(ctx) {
+					fmt.Printf("heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
+					pstatus = false
+					cancel()
+					<-time.After(100*time.Millisecond)
+				}else {
+					fmt.Printf("heartbeat ping %d times success pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
+					pstatus = true
+					cancel()
+					break
+				}
+			}
+
+			if !pstatus && !c.IsUsed() {
 				fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
 				return
 			}
 
-			if c.IsconnTimeOut() && !c.IsUsed() {
-				fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
-				_ = c.Close()
-				cs.Map.Delete(k.(peer.ID))
-			}
 		}()
 
 		return true
