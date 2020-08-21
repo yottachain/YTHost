@@ -197,7 +197,7 @@ func (cs *ClientStore) PongDetect() {
 
 	for {
 		<- time.After(time.Duration(ppi)*time.Millisecond)
-		fmt.Printf("pong start %d\n", ppi)
+		//fmt.Printf("pong start %d\n", ppi)
 		cs.Map.Range(f)
 	}
 }
