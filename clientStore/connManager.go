@@ -163,20 +163,23 @@ func (cs *ClientStore) PongDetect() {
 				cs.Map.Delete(k.(peer.ID))
 			}
 
-			var pongs = 3
-			var pstatus bool
-			for i := 0; i < pongs; i++ {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				if !c.Ping(ctx) {
-					fmt.Printf("heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
-					pstatus = false
-					cancel()
-					<-time.After(100*time.Millisecond)
-				}else {
-					fmt.Printf("heartbeat ping %d times success pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
-					pstatus = true
-					cancel()
-					break
+			//当前链接没有通信的情况才发送心跳，否则不用发送心跳检测
+			var pstatus = true
+			if !c.IsUsed() {
+				var pongs = 3
+				for i := 0; i < pongs; i++ {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					if !c.Ping(ctx) {
+						fmt.Printf("heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
+						pstatus = false
+						cancel()
+						<-time.After(100 * time.Millisecond)
+					} else {
+						fmt.Printf("heartbeat ping %d times success pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
+						pstatus = true
+						cancel()
+						break
+					}
 				}
 			}
 
