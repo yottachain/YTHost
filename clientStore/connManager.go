@@ -158,7 +158,7 @@ func (cs *ClientStore) PongDetect() {
 		c := v.(*client.YTHostClient)
 		go func() {
 			if c.IsconnTimeOut() && !c.IsUsed() {
-				fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
+				//fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
 			}
