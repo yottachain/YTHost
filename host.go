@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"net/rpc"
@@ -195,6 +196,13 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 			defer wg.Done()
 			d := &mnet.Dialer{}
 			if conn, err := d.DialContext(ctx, addr); err == nil {
+				tc, ok := conn.(net.Conn)
+				if ok {
+					c, ok := tc.(*net.TCPConn)
+					if ok {
+						c.SetWriteBuffer(1638400)
+					}
+				}
 				select {
 				case connChan <- conn:
 				case <-time.After(time.Second * 30):
