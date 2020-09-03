@@ -200,7 +200,14 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 				if ok {
 					c, ok := tc.(*net.TCPConn)
 					if ok {
-						c.SetWriteBuffer(1638400)
+						err := c.SetWriteBuffer(1638400)
+						if err != nil {
+							select {
+							case errChan <- fmt.Errorf("set buf size error=%s", err):
+							case <-time.After(time.Second * 30):
+							}
+							return
+						}
 					}
 				}
 				select {
