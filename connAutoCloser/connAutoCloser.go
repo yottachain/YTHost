@@ -1,7 +1,6 @@
 package connAutoCloser
 
 import (
-	"log"
 	"net"
 	"time"
 )
@@ -16,19 +15,9 @@ type ConnAutoCloser struct {
 func New(conn net.Conn) *ConnAutoCloser {
 	t := time.NewTimer(time.Minute)
 	go func() {
-		defer func() {
-			err := recover()
-			if err != nil {
-				log.Printf("[YTHost] err %s\n",err)
-			}
-		}()
-
-		if t != nil {
-			t.Stop()
-			<-t.C
-			if conn != nil {
-				conn.Close()
-			}
+		<-t.C
+		if conn != nil {
+			conn.Close()
 		}
 	}()
 	return &ConnAutoCloser{conn, time.Minute, t, make(chan struct{}, 1)}
