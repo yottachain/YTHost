@@ -104,7 +104,8 @@ func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int
 			writer.WriteHeader(500)
 			fmt.Fprintln(writer, err.Error())
 		} else {
-			fmt.Fprintln(writer, res)
+			writer.Write(res)
+			//fmt.Fprintln(writer, res)
 		}
 	})
 }
