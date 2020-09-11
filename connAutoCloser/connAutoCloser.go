@@ -15,9 +15,10 @@ type ConnAutoCloser struct {
 func New(conn net.Conn) *ConnAutoCloser {
 	t := time.NewTimer(time.Minute)
 	go func() {
-		t.Stop()
 		<-t.C
-		conn.Close()
+		if conn != nil {
+			conn.Close()
+		}
 	}()
 	return &ConnAutoCloser{conn, time.Minute, t, make(chan struct{}, 1)}
 }

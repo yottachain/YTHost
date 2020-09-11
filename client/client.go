@@ -151,11 +151,22 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 	go func() {
 		var res string
 		if err := yc.Call("ms.Ping", "ping", &res); err != nil {
-			errorChan <- struct{}{}
+			select {
+			case errorChan <- struct{}{}:
+			default:
+			}
 		} else if string(res) != "pong" {
-			errorChan <- struct{}{}
+			select {
+			case errorChan <- struct{}{}:
+			default:
+			}
+
+		} else {
+			select {
+			case successChan <- struct{}{}:
+			default:
+			}
 		}
-		successChan <- struct{}{}
 	}()
 
 	select {
