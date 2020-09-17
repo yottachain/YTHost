@@ -72,6 +72,7 @@ func (ms *MsgService) Ping(req string, res *string) error {
 }
 
 func (ms *MsgService) HandleMsg(req Request, data *Response) error {
+
 	if ms.Handler == nil {
 		return fmt.Errorf("no handler %x", req.MsgId)
 	}
