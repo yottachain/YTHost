@@ -1,4 +1,4 @@
-package hostInterface
+package YTinterface
 
 import (
 	"context"
@@ -24,4 +24,5 @@ type Host interface {
 	ConnectAddrStrings(ctx context.Context, id string, addrs []string) (*client.YTHostClient, error)
 	ClientStore() *clientStore.ClientStore
 	SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error)
+	SendMsgAuto(ctx context.Context, pid peer.ID,mid int32,  ma multiaddr.Multiaddr,msg []byte) ([]byte,error)
 }
