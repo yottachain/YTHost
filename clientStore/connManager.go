@@ -45,13 +45,13 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	var tryCount int
 	const max_try_count = 5
 
-	//cs.Lock()
+	cs.Lock()
 	idLock, ok := cs.IdLockMap[pid]
 	if !ok {
 		cs.IdLockMap[pid] = sync.Mutex{}
 		idLock, _ = cs.IdLockMap[pid]
 	}
-	//cs.Unlock()
+	cs.Unlock()
 
 	idLock.Lock()
 	defer idLock.Unlock()
