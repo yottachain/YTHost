@@ -102,10 +102,6 @@ func (hst *host) Accept() {
 		panic(err)
 	}
 
-	//for {
-	//	hst.srv.Accept(mnet.NetListener(hst.listener))
-	//}
-
 	var errorCount int32 = 0
 	lis := mnet.NetListener(hst.listener)
 	for {
@@ -122,7 +118,6 @@ func (hst *host) Accept() {
 			continue
 		}
 		ac := connAutoCloser.New(conn)
-		ac.SetOuttime(time.Minute * 5)
 		go hst.srv.ServeConn(ac)
 	}
 }
