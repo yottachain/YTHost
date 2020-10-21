@@ -9,7 +9,10 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"net/rpc"
+	"os"
+	"regexp"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -103,11 +106,19 @@ func (hst *host) Accept() {
 	//	hst.srv.Accept(mnet.NetListener(hst.listener))
 	//}
 
+	var errorCount int32 = 0
 	lis := mnet.NetListener(hst.listener)
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
 			log.Print("rpc.Serve: accept:", err.Error())
+			if matched,_:=regexp.MatchString("too many open files",err.Error());matched{
+				atomic.AddInt32(&errorCount,1)
+				if atomic.LoadInt32(&errorCount)>=1000{
+					log.Println("too many error")
+					os.Exit(1)
+				}
+			}
 			continue
 		}
 		ac := connAutoCloser.New(conn)
