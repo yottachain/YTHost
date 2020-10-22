@@ -205,7 +205,7 @@ func (cs *ClientStore) PongDetect() {
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {
 	cs := &ClientStore{
 		connFunc,
-		make(chan struct{}, 10000),
+		make(chan struct{}, 50000),
 		sync.Map{},
 		sync.Mutex{},
 		sync.Map{},
