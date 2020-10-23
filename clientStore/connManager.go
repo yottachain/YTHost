@@ -39,6 +39,18 @@ type ClientStore struct {
 	IdLockMap map[peer.ID] sync.Mutex
 }
 
+func (cs *ClientStore) GetUsePid(pid peer.ID) (c *client.YTHostClient){
+	cs.Lock()
+	defer cs.Unlock()
+	_c, ok := cs.Map.Load(pid)
+	if ok {
+		c = _c.(*client.YTHostClient)
+	}else {
+		c = nil
+	}
+	return
+}
+
 // Get 获取一个客户端，如果没有，建立新的客户端连接
 func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
 	select {
