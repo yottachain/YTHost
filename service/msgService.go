@@ -95,7 +95,7 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 
 	if ok {
 		if resdata, err := h(req.ReqData, head); err != nil {
-			return nil
+			return err
 		} else {
 			data.Data = resdata
 			data.ReturnTime = time.Now()
