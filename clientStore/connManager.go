@@ -40,8 +40,8 @@ type ClientStore struct {
 }
 
 func (cs *ClientStore) GetUsePid(pid peer.ID) (c *client.YTHostClient){
-	cs.Lock()
-	defer cs.Unlock()
+	//cs.Lock()
+	//defer cs.Unlock()
 	_c, ok := cs.Map.Load(pid)
 	if ok {
 		c = _c.(*client.YTHostClient)
