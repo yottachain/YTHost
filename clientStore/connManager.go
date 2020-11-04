@@ -51,7 +51,7 @@ func (cs *ClientStore) GetUsePid(pid peer.ID) (c *client.YTHostClient){
 	return
 }
 
-func (cs *ClientStore)backConnect (pid peer.ID, mas []multiaddr.Multiaddr) {
+func (cs *ClientStore) BackConnect (pid peer.ID, mas []multiaddr.Multiaddr) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(10))
 	defer cancel()
 	_, _ = cs.Get(ctx, pid, mas)
