@@ -51,6 +51,12 @@ func (cs *ClientStore) GetUsePid(pid peer.ID) (c *client.YTHostClient){
 	return
 }
 
+func (cs *ClientStore)backConnect (pid peer.ID, mas []multiaddr.Multiaddr) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(10))
+	defer cancel()
+	_, _ = cs.Get(ctx, pid, mas)
+}
+
 // Get 获取一个客户端，如果没有，建立新的客户端连接
 func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
 	select {
