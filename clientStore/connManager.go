@@ -193,7 +193,7 @@ func (cs *ClientStore) PongDetect() {
 			//当前链接没有通信的情况才发送心跳，否则不用发送心跳检测
 			var pstatus = true
 			if !c.IsUsed() {
-				var pongs = 3
+				var pongs = 6
 				for i := 0; i < pongs; i++ {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					if !c.Ping(ctx) {

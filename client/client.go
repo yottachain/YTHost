@@ -15,15 +15,14 @@ import (
 )
 
 var psi int
-
 func init() {
 	ssi := os.Getenv("P2P_SEND_MAX_INTERVAL")
 	if ssi == "" {
-		psi = 60000
+		psi = 1800000
 	}else {
 		si, err := strconv.Atoi(ssi)
 		if err != nil {
-			psi = 60000
+			psi = 1800000
 		}else {
 			psi = si
 		}
