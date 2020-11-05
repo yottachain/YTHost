@@ -181,14 +181,20 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 //}
 
 func (cs *ClientStore) PongDetect() {
+	wg := sync.WaitGroup{}
+
 	f := func(k, v interface{}) bool {
 		c := v.(*client.YTHostClient)
 		go func() {
+			wg.Add(1)
+			defer wg.Done()
+
 			if c.IsconnTimeOut() && !c.IsUsed() {
 				//fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
+				cs.Lock()
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
-
+				cs.Unlock()
 				return
 			}
 
@@ -214,8 +220,10 @@ func (cs *ClientStore) PongDetect() {
 
 			if !pstatus && !c.IsUsed() {
 				//fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
+				cs.Lock()
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
+				cs.Unlock()
 				return
 			}
 
@@ -228,6 +236,7 @@ func (cs *ClientStore) PongDetect() {
 		<- time.After(time.Duration(ppi)*time.Millisecond)
 		//fmt.Printf("pong start %d\n", ppi)
 		cs.Map.Range(f)
+		wg.Wait()
 	}
 }
 
