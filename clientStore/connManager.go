@@ -188,6 +188,8 @@ func (cs *ClientStore) PongDetect() {
 				//fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
+
+				return
 			}
 
 			//当前链接没有通信的情况才发送心跳，否则不用发送心跳检测
