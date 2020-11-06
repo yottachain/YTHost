@@ -110,7 +110,6 @@ func (hst *host) Accept() {
 			log.Print("rpc.Serve: accept:", err.Error())
 			continue
 		}
-		log.Print("accept success")
 		ac := connAutoCloser.New(conn)
 		ac.SetOuttime(time.Minute * 5)
 		go hst.srv.ServeConn(ac)
