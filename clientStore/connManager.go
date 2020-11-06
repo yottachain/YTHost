@@ -190,7 +190,7 @@ func (cs *ClientStore) PongDetect() {
 			defer wg.Done()
 
 			if c.IsconnTimeOut() && !c.IsUsed() {
-				//fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
+				fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
 				cs.Lock()
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
@@ -219,7 +219,7 @@ func (cs *ClientStore) PongDetect() {
 			}
 
 			if !pstatus && !c.IsUsed() {
-				//fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
+				fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
 				cs.Lock()
 				_ = c.Close()
 				cs.Map.Delete(k.(peer.ID))
