@@ -15,8 +15,6 @@ type ClientStore struct {
 	q       chan struct{}
 	sync.Map
 	sync.Mutex
-	MtxMap sync.Map
-	IdLockMap map[peer.ID] sync.Mutex
 }
 
 // Get 获取一个客户端，如果没有，建立新的客户端连接
@@ -36,25 +34,9 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 		<-cs.q
 	}()
 
-	//actul, _ := cs.MtxMap.LoadOrStore(pid, &sync.Mutex{})
-	//mux := actul.(*sync.Mutex)
-	//mux.Lock()
-	//defer mux.Unlock()
-
 	// 尝试次数
 	var tryCount int
 	const max_try_count = 5
-
-	cs.Lock()
-	idLock, ok := cs.IdLockMap[pid]
-	if !ok {
-		cs.IdLockMap[pid] = sync.Mutex{}
-		idLock, _ = cs.IdLockMap[pid]
-	}
-	cs.Unlock()
-
-	idLock.Lock()
-	defer idLock.Unlock()
 
 	// 取已存在clt
 start:
@@ -76,7 +58,6 @@ start:
 		// 如果已存在clt无法ping通,删除记录重新创建
 		c := _c.(*client.YTHostClient)
 		if c.IsClosed() || !c.Ping(ctx) {
-		//if c.IsClosed() {
 			c.Close()
 			cs.Map.Delete(pid)
 			goto start
@@ -137,10 +118,8 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {
 	return &ClientStore{
 		connFunc,
-		make(chan struct{}, 1000),
+		make(chan struct{}, 10000),
 		sync.Map{},
 		sync.Mutex{},
-		sync.Map{},
-		make(map[peer.ID] sync.Mutex),
 	}
 }
