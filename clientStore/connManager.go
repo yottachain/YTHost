@@ -35,8 +35,7 @@ type ClientStore struct {
 	q       chan struct{}
 	sync.Map
 	sync.Mutex
-	MtxMap sync.Map
-	IdLockMap map[peer.ID] sync.Mutex
+	IdLockMap map[peer.ID] *sync.Mutex
 }
 
 func (cs *ClientStore) GetUsePid(pid peer.ID) (c *client.YTHostClient){
@@ -82,12 +81,6 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 		<-cs.q
 	}()
 
-
-	//actul, _ := cs.MtxMap.LoadOrStore(pid, &sync.Mutex{})
-	//mux := actul.(*sync.Mutex)
-	//mux.Lock()
-	//defer mux.Unlock()
-
 	// 尝试次数
 	var tryCount int
 	const max_try_count = 5
@@ -95,7 +88,7 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	cs.Lock()
 	idLock, ok := cs.IdLockMap[pid]
 	if !ok {
-		cs.IdLockMap[pid] = sync.Mutex{}
+		cs.IdLockMap[pid] = &sync.Mutex{}
 		idLock, _ = cs.IdLockMap[pid]
 	}
 	cs.Unlock()
@@ -246,8 +239,7 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		make(chan struct{}, 50000),
 		sync.Map{},
 		sync.Mutex{},
-		sync.Map{},
-		make(map[peer.ID] sync.Mutex),
+		make(map[peer.ID] *sync.Mutex),
 	}
 
 	go cs.PongDetect()
