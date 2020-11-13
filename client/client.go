@@ -16,18 +16,30 @@ type YTHostClient struct {
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	isClosed        bool
-	Version         int
+	Version         int32
+	RPI *service.PeerInfo
+}
+
+func (yc *YTHostClient)GetRPI()error{
+	var pi service.PeerInfo
+	if err := yc.Call("as.RemotePeerInfo", "", &pi); err != nil {
+		return err
+	}
+	yc.RPI = &pi
+	return nil
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
-	var pi service.PeerInfo
 	var ai peer.AddrInfo
-
-	if err := yc.Call("as.RemotePeerInfo", "", &pi); err != nil {
-		fmt.Println(err)
+	if yc.RPI == nil {
+		err:=yc.GetRPI()
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
-	ai.ID = pi.ID
-	for _, addr := range pi.Addrs {
+
+	ai.ID = yc.RPI.ID
+	for _, addr := range yc.RPI.Addrs {
 		ma, _ := multiaddr.NewMultiaddr(addr)
 		ai.Addrs = append(ai.Addrs, ma)
 	}
@@ -36,22 +48,24 @@ func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
 }
 
 func (yc *YTHostClient) RemotePeerPubkey() crypto.PubKey {
-	var pi service.PeerInfo
-
-	if err := yc.Call("as.RemotePeerInfo", "", &pi); err != nil {
-		fmt.Println(err)
+	if yc.RPI == nil {
+		err:=yc.GetRPI()
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
-	pk, _ := crypto.UnmarshalPublicKey(pi.PubKey)
+	pk, _ := crypto.UnmarshalPublicKey(yc.RPI.PubKey)
 	return pk
 }
 
-func (yc *YTHostClient) RemotePeerVersion() int {
-	var pi service.PeerInfo
-
-	if err := yc.Call("as.RemotePeerInfo", "", &pi); err != nil {
-		fmt.Println(err)
+func (yc *YTHostClient) RemotePeerVersion() int32 {
+	if yc.RPI == nil {
+		err:=yc.GetRPI()
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
-	return pi.Version
+	return yc.RPI.Version
 }
 
 func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
@@ -64,7 +78,7 @@ func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
 	return pi
 }
 
-func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int) (*YTHostClient, error) {
+func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int32) (*YTHostClient, error) {
 	var yc = new(YTHostClient)
 	yc.Client = clt
 	yc.localPeerID = pi.ID

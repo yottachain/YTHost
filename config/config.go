@@ -14,7 +14,7 @@ type Config struct {
 	ID         peer.ID
 	Debug      bool
 	PProf      string
-	Version    int
+	Version    int32
 }
 
 func NewConfig() *Config {

@@ -8,14 +8,14 @@ import (
 type AddrService struct {
 	Info    peer.AddrInfo
 	PubKey  crypto.PubKey
-	Version int
+	Version int32
 }
 
 type PeerInfo struct {
 	ID     peer.ID
 	Addrs  []string
 	PubKey []byte
-	Version int
+	Version int32
 }
 
 func (as *AddrService) RemotePeerInfo(req string, res *PeerInfo) error {
