@@ -6,14 +6,16 @@ import (
 )
 
 type AddrService struct {
-	Info   peer.AddrInfo
-	PubKey crypto.PubKey
+	Info    peer.AddrInfo
+	PubKey  crypto.PubKey
+	Version int
 }
 
 type PeerInfo struct {
 	ID     peer.ID
 	Addrs  []string
 	PubKey []byte
+	Version int
 }
 
 func (as *AddrService) RemotePeerInfo(req string, res *PeerInfo) error {
@@ -27,5 +29,6 @@ func (as *AddrService) RemotePeerInfo(req string, res *PeerInfo) error {
 	for _, addr := range as.Info.Addrs {
 		res.Addrs = append(res.Addrs, addr.String())
 	}
+	res.Version = as.Version
 	return nil
 }

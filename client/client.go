@@ -16,6 +16,7 @@ type YTHostClient struct {
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	isClosed        bool
+	Version         int
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
@@ -44,6 +45,15 @@ func (yc *YTHostClient) RemotePeerPubkey() crypto.PubKey {
 	return pk
 }
 
+func (yc *YTHostClient) RemotePeerVersion() int {
+	var pi service.PeerInfo
+
+	if err := yc.Call("as.RemotePeerInfo", "", &pi); err != nil {
+		fmt.Println(err)
+	}
+	return pi.Version
+}
+
 func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
 	pi := peer.AddrInfo{}
 	pi.ID = yc.localPeerID
@@ -54,11 +64,12 @@ func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
 	return pi
 }
 
-func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostClient, error) {
+func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int) (*YTHostClient, error) {
 	var yc = new(YTHostClient)
 	yc.Client = clt
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
+	yc.Version = v
 
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
@@ -82,7 +93,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	go func() {
 		var res service.Response
 
-		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey}
+		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey,yc.Version}
 
 		if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res); err != nil {
 			select {

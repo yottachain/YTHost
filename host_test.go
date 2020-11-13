@@ -61,7 +61,7 @@ func GetRandomHost() Host {
 	return GetHost(GetRandomLocalMutlAddr())
 }
 func GetHost(ma multiaddr.Multiaddr) Host {
-	hst, err := host.NewHost(option.ListenAddr(ma))
+	hst, err := host.NewHost(option.ListenAddr(ma),option.Version(137))
 	if err != nil {
 		panic(err)
 	}
@@ -119,9 +119,10 @@ func TestConnSendPeerInfo(t *testing.T) {
 	}
 
 	peerInfo := clt.RemotePeer()
+	peerVersion := clt.RemotePeerVersion()
 
 	// 打印节点信息
-	t.Log(peerInfo.ID.Pretty(), peerInfo.Addrs, clt.RemotePeerPubkey())
+	t.Log(peerInfo.ID.Pretty(), peerInfo.Addrs, clt.RemotePeerPubkey(),peerVersion)
 }
 
 // 发送，处理消息

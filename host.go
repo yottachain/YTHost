@@ -86,6 +86,7 @@ func (hst *host) Accept() {
 	addrService.Info.ID = hst.cfg.ID
 	addrService.Info.Addrs = hst.Addrs()
 	addrService.PubKey = hst.Config().Privkey.GetPublic()
+	addrService.Version = hst.Config().Version
 
 	msgService := new(service.MsgService)
 	msgService.Handler = hst.HandlerMap
@@ -200,7 +201,9 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	ytclt, err := client.WarpClient(clt, &peer.AddrInfo{
 		hst.cfg.ID,
 		hst.Addrs(),
-	}, hst.cfg.Privkey.GetPublic())
+		}, hst.cfg.Privkey.GetPublic(),
+		hst.Config().Version,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -34,3 +34,9 @@ func OpenDebug() Option {
 		cfg.Debug = true
 	}
 }
+
+func Version(v int)Option{
+	return func(cfg *config.Config) {
+		cfg.Version = v
+	}
+}
