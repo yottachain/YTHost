@@ -228,7 +228,9 @@ func (cs *ClientStore) PongDetect() {
 		wg = &sync.WaitGroup{}
 		<- time.After(time.Duration(ppi)*time.Millisecond)
 		//fmt.Printf("pong start %d\n", ppi)
+		cs.Lock()
 		cs.Map.Range(f)
+		cs.Unlock()
 		wg.Wait()
 	}
 }
