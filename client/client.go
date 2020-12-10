@@ -63,6 +63,7 @@ func (yc *YTHostClient) RemotePeerVersion() int32 {
 		err:=yc.GetRPI()
 		if err != nil {
 			fmt.Println(err)
+			return 0
 		}
 	}
 	return yc.RPI.Version
