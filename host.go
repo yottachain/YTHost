@@ -255,15 +255,13 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		}(addr)
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx quit")
-		case conn := <-connChan:
-			return conn, nil
-		case err := <-errChan:
-			return nil, err
-		}
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("ctx quit")
+	case conn := <-connChan:
+		return conn, nil
+	case err := <-errChan:
+		return nil, err
 	}
 }
 
