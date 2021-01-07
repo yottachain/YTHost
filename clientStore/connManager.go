@@ -38,6 +38,17 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	var tryCount int
 	const max_try_count = 5
 
+	cs.Lock()
+	idLock, ok := cs.IdLockMap[pid]
+	if !ok {
+		cs.IdLockMap[pid] = &sync.Mutex{}
+		idLock, _ = cs.IdLockMap[pid]
+	}
+	cs.Unlock()
+
+	idLock.Lock()
+	defer idLock.Unlock()
+
 	// 取已存在clt
 start:
 	// 如果达到最大尝试次数就返回错误
