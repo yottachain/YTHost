@@ -37,17 +37,30 @@ type YTHostClient struct {
 	isClosed        bool
 	lastSendTime	time.Time
 	uses  			int32
+	Version         int32
+	RPI *service.PeerInfo
+}
+
+func (yc *YTHostClient)GetRPI()error{
+	var pi service.PeerInfo
+	if err := yc.Call("as.RemotePeerInfo", "", &pi); err != nil {
+		return err
+	}
+	yc.RPI = &pi
+	return nil
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
-	var pi service.PeerInfo
 	var ai peer.AddrInfo
-
-	if err := yc.Call("as.RemotePeerInfo", "", &pi); err != nil {
-		fmt.Println(err)
+	if yc.RPI == nil {
+		err:=yc.GetRPI()
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
-	ai.ID = pi.ID
-	for _, addr := range pi.Addrs {
+
+	ai.ID = yc.RPI.ID
+	for _, addr := range yc.RPI.Addrs {
 		ma, _ := multiaddr.NewMultiaddr(addr)
 		ai.Addrs = append(ai.Addrs, ma)
 	}
@@ -56,13 +69,25 @@ func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
 }
 
 func (yc *YTHostClient) RemotePeerPubkey() crypto.PubKey {
-	var pi service.PeerInfo
-
-	if err := yc.Call("as.RemotePeerInfo", "", &pi); err != nil {
-		fmt.Println(err)
+	if yc.RPI == nil {
+		err:=yc.GetRPI()
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
-	pk, _ := crypto.UnmarshalPublicKey(pi.PubKey)
+	pk, _ := crypto.UnmarshalPublicKey(yc.RPI.PubKey)
 	return pk
+}
+
+func (yc *YTHostClient) RemotePeerVersion() int32 {
+	if yc.RPI == nil {
+		err:=yc.GetRPI()
+		if err != nil {
+			fmt.Println(err)
+			return 0
+		}
+	}
+	return yc.RPI.Version
 }
 
 func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
@@ -75,13 +100,14 @@ func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
 	return pi
 }
 
-func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey) (*YTHostClient, error) {
+func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int32) (*YTHostClient, error) {
 	var yc = new(YTHostClient)
 	yc.Client = clt
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
 	yc.lastSendTime = time.Now()
 	yc.uses = 0
+	yc.Version = v
 
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
@@ -109,7 +135,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	go func() {
 		var res service.Response
 
-		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey}
+		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey,yc.Version}
 
 		if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res); err != nil {
 			select {
