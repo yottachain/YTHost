@@ -15,6 +15,7 @@ type ClientStore struct {
 	q       chan struct{}
 	sync.Map
 	sync.Mutex
+	IdLockMap map[peer.ID] *sync.Mutex
 }
 
 // Get 获取一个客户端，如果没有，建立新的客户端连接
@@ -132,5 +133,6 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		make(chan struct{}, 10000),
 		sync.Map{},
 		sync.Mutex{},
+		make(map[peer.ID] *sync.Mutex),
 	}
 }
