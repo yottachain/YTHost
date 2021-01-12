@@ -146,6 +146,10 @@ func (h *host) SendHTTPMsg(ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byt
 		return nil, err
 	}
 
+	if resp.StatusCode == 500 {
+		return nil, fmt.Errorf("response 500 error")
+	}
+
 	respData, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 
