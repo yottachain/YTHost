@@ -102,8 +102,9 @@ func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int
 			_, _ = writer.Write([]byte{})
 			return
 		}
-		_, _ = fmt.Sscanf(request.URL.String(),"/msg/%d",&id)
-		res, err := handlerFunc(reqData, service.Head{MsgId: id, RemotePeerID: h.cfg.ID, RemoteAddrs: h.Addrs(), RemotePubKey: pk})
+		msgId := 0
+		_, _ = fmt.Sscanf(request.URL.String(),"/msg/%d", &msgId)
+		res, err := handlerFunc(reqData, service.Head{MsgId: int32(msgId), RemotePeerID: h.cfg.ID, RemoteAddrs: h.Addrs(), RemotePubKey: pk})
 		if err != nil {
 			writer.WriteHeader(500)
 			_, _ = fmt.Fprintln(writer, err.Error())
