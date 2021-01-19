@@ -90,22 +90,26 @@ func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int
 		reqData, err := ioutil.ReadAll(request.Body)
 		if err != nil {
 			writer.WriteHeader(500)
-			fmt.Fprintln(writer, "request body read error:", err.Error())
+			_, _ = fmt.Fprintln(writer, "request body read error:", err.Error())
+			_, _ = writer.Write([]byte{})
+			return
 		}
 
 		pk, err := h.cfg.Privkey.GetPublic().Raw()
 		if err != nil {
 			writer.WriteHeader(500)
-			fmt.Fprintln(writer, "get pubkey error:", err.Error())
+			_, _ = fmt.Fprintln(writer, "get pubkey error:", err.Error())
+			_, _ = writer.Write([]byte{})
+			return
 		}
-		fmt.Sscanf(request.URL.String(),"/msg/%d",&id)
-		res, err := handlerFunc(reqData, service.Head{MsgId: id, RemotePeerID: h.cfg.ID, RemoteAddrs: h.Addrs(), RemotePubKey: pk})
+		msgId := 0
+		_, _ = fmt.Sscanf(request.URL.String(),"/msg/%d", &msgId)
+		res, err := handlerFunc(reqData, service.Head{MsgId: int32(msgId), RemotePeerID: h.cfg.ID, RemoteAddrs: h.Addrs(), RemotePubKey: pk})
 		if err != nil {
 			writer.WriteHeader(500)
-			fmt.Fprintln(writer, err.Error())
+			_, _ = fmt.Fprintln(writer, err.Error())
 		} else {
-			writer.Write(res)
-			//fmt.Fprintln(writer, res)
+			_, _ = writer.Write(res)
 		}
 	})
 }

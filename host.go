@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -130,13 +131,23 @@ func (h *host) SendHTTPMsg(ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byt
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%s/msg/%d", addr, port, mid), bytes.NewBuffer(msg))
+
+	buf := bytes.NewBuffer([]byte{})
+	err = binary.Write(buf, binary.BigEndian, msg)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:%s/msg/%d", addr, port, mid), buf)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := h.httpClient.Do(req)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode == 500 {
+		return nil, fmt.Errorf("response 500 error")
 	}
 
 	respData, err := ioutil.ReadAll(resp.Body)
