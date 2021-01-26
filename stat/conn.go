@@ -34,6 +34,12 @@ func (cs *ConnStat) CccSub () {
 	cs.CliConnCount--
 }
 
+func (cs *ConnStat) GetCliconnCount() uint64 {
+	cs.Lock()
+	defer cs.Unlock()
+	return cs.CliConnCount
+}
+
 func (cs *ConnStat) SccAdd () {
 	cs.Lock()
 	defer cs.Unlock()
@@ -44,6 +50,12 @@ func (cs *ConnStat) SccSub () {
 	cs.Lock()
 	defer cs.Unlock()
 	cs.SerConnCount--
+}
+
+func (cs *ConnStat) GetSerconnCount() uint64 {
+	cs.Lock()
+	defer cs.Unlock()
+	return cs.SerConnCount
 }
 
 func (cs *ConnStat) ListenSerClose() {
