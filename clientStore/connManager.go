@@ -54,6 +54,7 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 start:
 	// 如果达到最大尝试次数就返回错误
 	if tryCount++; tryCount > max_try_count {
+		_ = cs.Close(pid)
 		return nil, fmt.Errorf("Maximum attempts %d ", max_try_count)
 	}
 	_c, ok := cs.Map.Load(pid)
@@ -70,8 +71,7 @@ start:
 		// 如果已存在clt无法ping通,删除记录重新创建
 		c := _c.(*client.YTHostClient)
 		if c.IsClosed() || !c.Ping(ctx) {
-			c.Close()
-			cs.Map.Delete(pid)
+			_ = cs.Close(pid)
 			goto start
 		}
 
