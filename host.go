@@ -176,6 +176,10 @@ func (hst *host) Config() *config.Config {
 	return hst.cfg
 }
 
+func (hst *host) ConnStat() *stat.ConnStat {
+	return hst.Cs
+}
+
 func (hst *host) ClientStore() *clientStore.ClientStore {
 	return hst.clientStore
 }
