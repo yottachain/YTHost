@@ -31,9 +31,6 @@ func (cs *ConnStat) CccAdd () {
 func (cs *ConnStat) CccSub () {
 	cs.Lock()
 	defer cs.Unlock()
-	//if cs.CliConnCount == 0 {
-	//	return
-	//}
 	cs.CliConnCount--
 }
 
@@ -52,9 +49,6 @@ func (cs *ConnStat) SccAdd () {
 func (cs *ConnStat) SccSub () {
 	cs.Lock()
 	defer cs.Unlock()
-	//if cs.SerConnCount == 0 {
-	//	return
-	//}
 	cs.SerConnCount--
 }
 
