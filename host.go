@@ -43,7 +43,7 @@ type host struct {
 	service.HandlerMap
 	clientStore *clientStore.ClientStore
 	httpClient  *http.Client
-	cs *stat.ConnStat
+	Cs *stat.ConnStat
 }
 
 func NewHost(options ...option.Option) (*host, error) {
@@ -67,7 +67,7 @@ func NewHost(options ...option.Option) (*host, error) {
 
 	hst.HandlerMap = make(service.HandlerMap)
 
-	hst.cs = stat.NewCs()
+	hst.Cs = stat.NewCs()
 	hst.clientStore = clientStore.NewClientStore(hst.Connect)
 
 	if hst.cfg.PProf != "" {
@@ -115,12 +115,12 @@ func (hst *host) Accept() {
 			log.Print("rpc.Serve: accept:", err.Error())
 			continue
 		}
-		hst.cs.SccAdd()
+		hst.Cs.SccAdd()
 		ac := connAutoCloser.New(conn)
 		ac.SetOuttime(time.Minute * 5)
 		go func() {
 			hst.srv.ServeConn(ac)
-			hst.cs.SerCloseChanl <- struct{}{}
+			hst.Cs.SerCloseChanl <- struct{}{}
 		}()
 		//go hst.srv.ServeConn(ac)
 	}
@@ -224,7 +224,7 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		},
 		hst.cfg.Privkey.GetPublic(),
 		hst.Config().Version,
-		hst.cs,
+		hst.Cs,
 	)
 	if err != nil {
 		_ = clt.Close()
