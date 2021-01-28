@@ -188,7 +188,9 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 func (yc *YTHostClient) Close() error {
 	yc.Lock()
 	defer yc.Unlock()
-
+	if yc.isClosed {
+		return nil
+	}
 	yc.isClosed = true
 	yc.Cs.CccSub()
 	return yc.Client.Close()
