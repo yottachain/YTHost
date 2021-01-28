@@ -9,6 +9,7 @@ import (
 	"github.com/yottachain/YTHost/service"
 	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
+	"sync"
 )
 
 type YTHostClient struct {
@@ -20,6 +21,7 @@ type YTHostClient struct {
 	Version         int32
 	RPI *service.PeerInfo
 	Cs *stat.ConnStat
+	sync.Mutex
 }
 
 func (yc *YTHostClient)GetRPI()error{
@@ -92,7 +94,10 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int32, cs
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
 	}
+
+	yc.Lock()
 	yc.isClosed = false
+	yc.Unlock()
 
 	return yc, nil
 }
@@ -181,12 +186,17 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 }
 
 func (yc *YTHostClient) Close() error {
+	yc.Lock()
+	defer yc.Unlock()
+
 	yc.isClosed = true
 	yc.Cs.CccSub()
 	return yc.Client.Close()
 }
 
 func (yc *YTHostClient) IsClosed() bool {
+	yc.Lock()
+	defer yc.Unlock()
 	return yc.isClosed
 }
 
