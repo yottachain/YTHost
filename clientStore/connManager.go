@@ -54,7 +54,7 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 start:
 	// 如果达到最大尝试次数就返回错误
 	if tryCount++; tryCount > max_try_count {
-		_ = cs.Close(pid)
+		//_ = cs.Close(pid)
 		return nil, fmt.Errorf("Maximum attempts %d ", max_try_count)
 	}
 	_c, ok := cs.Map.Load(pid)
