@@ -235,7 +235,7 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		return nil, err
 	}
 
-	ytclt.Cs.CccAdd()
+	go ytclt.Cs.CccAdd()
 
 	return ytclt, nil
 }
