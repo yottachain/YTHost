@@ -7,9 +7,11 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/service"
+	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
 	"os"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -39,6 +41,8 @@ type YTHostClient struct {
 	uses  			int32
 	Version         int32
 	RPI *service.PeerInfo
+	Cs *stat.ConnStat
+	sync.Mutex
 }
 
 func (yc *YTHostClient)GetRPI()error{
@@ -100,7 +104,7 @@ func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
 	return pi
 }
 
-func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int32) (*YTHostClient, error) {
+func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int32, cs *stat.ConnStat) (*YTHostClient, error) {
 	var yc = new(YTHostClient)
 	yc.Client = clt
 	yc.localPeerID = pi.ID
@@ -108,11 +112,15 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int32) (*
 	yc.lastSendTime = time.Now()
 	yc.uses = 0
 	yc.Version = v
+	yc.Cs = cs
 
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
 	}
+
+	yc.Lock()
 	yc.isClosed = false
+	yc.Unlock()
 
 	return yc, nil
 }
@@ -205,11 +213,19 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 }
 
 func (yc *YTHostClient) Close() error {
+	yc.Lock()
+	defer yc.Unlock()
+	if yc.isClosed {
+		return nil
+	}
 	yc.isClosed = true
+	yc.Cs.CccSub()
 	return yc.Client.Close()
 }
 
 func (yc *YTHostClient) IsClosed() bool {
+	yc.Lock()
+	defer yc.Unlock()
 	return yc.isClosed
 }
 

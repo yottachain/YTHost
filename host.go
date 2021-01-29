@@ -24,6 +24,7 @@ import (
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/peerInfo"
 	"github.com/yottachain/YTHost/service"
+	"github.com/yottachain/YTHost/stat"
 )
 
 //type Host interface {
@@ -42,6 +43,7 @@ type host struct {
 	service.HandlerMap
 	clientStore *clientStore.ClientStore
 	httpClient  *http.Client
+	Cs *stat.ConnStat
 }
 
 func NewHost(options ...option.Option) (*host, error) {
@@ -65,6 +67,7 @@ func NewHost(options ...option.Option) (*host, error) {
 
 	hst.HandlerMap = make(service.HandlerMap)
 
+	hst.Cs = stat.NewCs()
 	hst.clientStore = clientStore.NewClientStore(hst.Connect)
 
 	if hst.cfg.PProf != "" {
@@ -112,9 +115,14 @@ func (hst *host) Accept() {
 			log.Print("rpc.Serve: accept:", err.Error())
 			continue
 		}
+		hst.Cs.SccAdd()
 		ac := connAutoCloser.New(conn)
 		ac.SetOuttime(time.Minute * 5)
-		go hst.srv.ServeConn(ac)
+		go func() {
+			hst.srv.ServeConn(ac)
+			hst.Cs.SerCloseChanl <- struct{}{}
+		}()
+		//go hst.srv.ServeConn(ac)
 	}
 }
 
@@ -168,6 +176,10 @@ func (hst *host) Config() *config.Config {
 	return hst.cfg
 }
 
+func (hst *host) ConnStat() *stat.ConnStat {
+	return hst.Cs
+}
+
 func (hst *host) ClientStore() *clientStore.ClientStore {
 	return hst.clientStore
 }
@@ -209,15 +221,22 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	}
 
 	clt := rpc.NewClient(conn)
-	ytclt, err := client.WarpClient(clt, &peer.AddrInfo{
+	ytclt, err := client.WarpClient(clt,
+		&peer.AddrInfo{
 		hst.cfg.ID,
 		hst.Addrs(),
-		}, hst.cfg.Privkey.GetPublic(),
+		},
+		hst.cfg.Privkey.GetPublic(),
 		hst.Config().Version,
+		hst.Cs,
 	)
 	if err != nil {
+		_ = clt.Close()
 		return nil, err
 	}
+
+	ytclt.Cs.CccAdd()
+
 	return ytclt, nil
 }
 

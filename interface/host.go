@@ -8,6 +8,7 @@ import (
 	"github.com/yottachain/YTHost/clientStore"
 	"github.com/yottachain/YTHost/config"
 	"github.com/yottachain/YTHost/service"
+	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
 )
 
@@ -25,4 +26,5 @@ type Host interface {
 	ClientStore() *clientStore.ClientStore
 	SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error)
 	SendMsgAuto(ctx context.Context, pid peer.ID,mid int32,  ma multiaddr.Multiaddr,msg []byte) ([]byte,error)
+	ConnStat() *stat.ConnStat
 }
