@@ -119,7 +119,7 @@ start:
 			cs.Map.Delete(pid)
 			goto start
 		}
-		
+
 		return c, nil
 	}
 }
@@ -225,10 +225,7 @@ func (cs *ClientStore) PongDetect() {
 	for {
 		wg = &sync.WaitGroup{}
 		<- time.After(time.Duration(ppi)*time.Millisecond)
-		//fmt.Printf("pong start %d\n", ppi)
-		cs.Lock()
 		cs.Map.Range(f)
-		cs.Unlock()
 		wg.Wait()
 	}
 }
