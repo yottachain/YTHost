@@ -6,6 +6,7 @@ import (
 	"fmt"
 	manet "github.com/multiformats/go-multiaddr-net"
 	"github.com/yottachain/YTHost/option"
+	"github.com/yottachain/YTHost/stat"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -30,6 +31,7 @@ type host struct {
 	client    *http.Client
 	//transport *Transport
 	sync.Map
+	Cs *stat.ConnStat
 }
 
 func (h *host) Accept() {
@@ -72,6 +74,10 @@ func (h host) Server() *rpc.Server {
 
 func (h *host) Config() *config.Config {
 	return h.cfg
+}
+
+func (hst *host) ConnStat() *stat.ConnStat {
+	return hst.Cs
 }
 
 func (h *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
