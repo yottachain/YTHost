@@ -224,8 +224,8 @@ func (yc *YTHostClient) Close() error {
 }
 
 func (yc *YTHostClient) IsClosed() bool {
-	yc.Lock()
-	defer yc.Unlock()
+	//yc.Lock()
+	//defer yc.Unlock()
 	return yc.isClosed
 }
 
