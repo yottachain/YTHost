@@ -9,8 +9,27 @@ import (
 	"github.com/yottachain/YTHost/service"
 	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
+	"os"
+	"strconv"
 	"sync"
+	"sync/atomic"
+	"time"
 )
+
+var psi int
+func init() {
+	ssi := os.Getenv("P2P_SEND_MAX_INTERVAL")
+	if ssi == "" {
+		psi = 1800000
+	}else {
+		si, err := strconv.Atoi(ssi)
+		if err != nil {
+			psi = 1800000
+		}else {
+			psi = si
+		}
+	}
+}
 
 type YTHostClient struct {
 	*rpc.Client
@@ -18,6 +37,8 @@ type YTHostClient struct {
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	isClosed        bool
+	lastSendTime	time.Time
+	uses  			int32
 	Version         int32
 	RPI *service.PeerInfo
 	Cs *stat.ConnStat
@@ -88,6 +109,8 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int32, cs
 	yc.Client = clt
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
+	yc.lastSendTime = time.Now()
+	yc.uses = 0
 	yc.Version = v
 	yc.Cs = cs
 
@@ -111,7 +134,11 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 		if err := recover(); err != nil {
 			errChan <- err.(error)
 		}
+		atomic.AddInt32(&yc.uses, -1)
 	}()
+
+	yc.lastSendTime = time.Now()
+	atomic.AddInt32(&yc.uses, 1)
 
 	go func() {
 		var res service.Response
@@ -205,4 +232,20 @@ func (yc *YTHostClient) IsClosed() bool {
 func (yc *YTHostClient) SendMsgClose(ctx context.Context, id int32, data []byte) ([]byte, error) {
 	defer yc.Close()
 	return yc.SendMsg(ctx, id, data)
+}
+
+func (yc *YTHostClient) IsconnTimeOut() bool {
+	if time.Now().Sub(yc.lastSendTime).Milliseconds() > int64(psi) {
+		return true
+	}else {
+		return false
+	}
+}
+
+func (yc *YTHostClient) IsUsed() bool {
+	if atomic.LoadInt32(&yc.uses) == 0 {
+		return false
+	}else {
+		return true
+	}
 }

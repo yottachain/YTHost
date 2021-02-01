@@ -12,7 +12,6 @@ import (
 	"github.com/yottachain/YTHost/service"
 	"math/rand"
 	"net"
-
 	//"net"
 	"sync"
 	"testing"
@@ -365,6 +364,37 @@ func TestDnsMa(t *testing.T) {
 		t.Fatal(err)
 	} else {
 		t.Log(ma)
+	}
+}
+
+func TestCsHeartbeat(t *testing.T) {
+	hst := GetRandomHost()
+
+	hst.RegisterGlobalMsgHandler(func(requestData []byte, head service.Head) (bytes []byte, e error) {
+		fmt.Println(string(requestData), head.RemotePubKey, head.RemotePeerID, head.RemoteAddrs)
+		return []byte("111"), nil
+	})
+
+	go hst.Accept()
+
+	hst2 := GetRandomHost()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	clt, err := hst2.ClientStore().Get(ctx, hst.Config().ID, hst.Addrs())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res, err := clt.SendMsg(context.Background(), 0x0, []byte("11121314151617")); err != nil {
+		t.Log(err)
+	}else {
+		fmt.Println(res)
+	}
+
+	for {
+		<-time.After(6*time.Minute)
+		break
 	}
 }
 
