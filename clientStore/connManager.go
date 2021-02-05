@@ -225,7 +225,9 @@ func (cs *ClientStore) PongDetect() {
 	for {
 		//wg = &sync.WaitGroup{}
 		<- time.After(time.Duration(ppi)*time.Millisecond)
+		cs.Lock()
 		cs.Map.Range(f)
+		cs.Unlock()
 		wg.Wait()
 	}
 }
