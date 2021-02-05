@@ -223,7 +223,7 @@ func (cs *ClientStore) PongDetect() {
 	}
 
 	for {
-		wg = &sync.WaitGroup{}
+		//wg = &sync.WaitGroup{}
 		<- time.After(time.Duration(ppi)*time.Millisecond)
 		cs.Map.Range(f)
 		wg.Wait()
