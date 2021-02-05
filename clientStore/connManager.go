@@ -172,58 +172,55 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 //}
 
 func (cs *ClientStore) PongDetect() {
-	wg := &sync.WaitGroup{}
+	for {
+		wg := &sync.WaitGroup{}
+		f := func(k, v interface{}) bool {
+			c := v.(*client.YTHostClient)
+			go func() {
+				wg.Add(1)
+				defer wg.Done()
 
-	f := func(k, v interface{}) bool {
-		c := v.(*client.YTHostClient)
-		go func() {
-			wg.Add(1)
-			defer wg.Done()
+				if c.IsconnTimeOut() && !c.IsUsed() {
+					//fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
+					cs.Lock()
+					_ = c.Close()
+					cs.Map.Delete(k.(peer.ID))
+					cs.Unlock()
+					return
+				}
 
-			if c.IsconnTimeOut() && !c.IsUsed() {
-				//fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
-				cs.Lock()
-				_ = c.Close()
-				cs.Map.Delete(k.(peer.ID))
-				cs.Unlock()
-				return
-			}
-
-			//当前链接没有通信的情况才发送心跳，否则不用发送心跳检测
-			var pstatus = true
-			if !c.IsUsed() {
-				var pongs = 3
-				for i := 0; i < pongs; i++ {
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					if !c.Ping(ctx) {
-						//fmt.Printf("heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
-						pstatus = false
-						cancel()
-						<-time.After(100 * time.Millisecond)
-					} else {
-						//fmt.Printf("heartbeat ping %d times success pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
-						pstatus = true
-						cancel()
-						break
+				//当前链接没有通信的情况才发送心跳，否则不用发送心跳检测
+				var pstatus = true
+				if !c.IsUsed() {
+					var pongs = 3
+					for i := 0; i < pongs; i++ {
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						if !c.Ping(ctx) {
+							//fmt.Printf("heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
+							pstatus = false
+							cancel()
+							<-time.After(100 * time.Millisecond)
+						} else {
+							//fmt.Printf("heartbeat ping %d times success pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
+							pstatus = true
+							cancel()
+							break
+						}
 					}
 				}
-			}
 
-			if !pstatus && !c.IsUsed() {
-				//fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
-				cs.Lock()
-				_ = c.Close()
-				cs.Map.Delete(k.(peer.ID))
-				cs.Unlock()
-				return
-			}
-		}()
+				if !pstatus && !c.IsUsed() {
+					//fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
+					cs.Lock()
+					_ = c.Close()
+					cs.Map.Delete(k.(peer.ID))
+					cs.Unlock()
+					return
+				}
+			}()
 
-		return true
-	}
-
-	for {
-		//wg = &sync.WaitGroup{}
+			return true
+		}
 		<- time.After(time.Duration(ppi)*time.Millisecond)
 		cs.Lock()
 		cs.Map.Range(f)
