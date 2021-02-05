@@ -174,6 +174,7 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 func (cs *ClientStore) PongDetect() {
 	for {
 		wg := &sync.WaitGroup{}
+
 		f := func(k, v interface{}) bool {
 			c := v.(*client.YTHostClient)
 			go func() {
@@ -221,10 +222,11 @@ func (cs *ClientStore) PongDetect() {
 
 			return true
 		}
+
 		<- time.After(time.Duration(ppi)*time.Millisecond)
-		cs.Lock()
+		//cs.Lock()
 		cs.Map.Range(f)
-		cs.Unlock()
+		//cs.Unlock()
 		wg.Wait()
 	}
 }
