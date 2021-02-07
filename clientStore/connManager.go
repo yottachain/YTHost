@@ -177,8 +177,8 @@ func (cs *ClientStore) PongDetect() {
 
 		f := func(k, v interface{}) bool {
 			c := v.(*client.YTHostClient)
+			wg.Add(1)
 			go func() {
-				wg.Add(1)
 				defer wg.Done()
 
 				if c.IsconnTimeOut() && !c.IsUsed() {
