@@ -1,13 +1,14 @@
 package clientStore_test
 
 import (
+	"testing"
+	"time"
+
 	"github.com/multiformats/go-multiaddr"
 	host "github.com/yottachain/YTHost"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/service"
 	"golang.org/x/net/context"
-	"testing"
-	"time"
 )
 
 func TestClientStore(t *testing.T) {
@@ -50,9 +51,6 @@ func TestClientStore(t *testing.T) {
 	_, err = hst1.ClientStore().Get(ctx, hst.Config().ID, hst.Addrs())
 	if err != nil {
 		t.Fatal(err)
-	}
-	if hst1.ClientStore().Len() > 1 {
-		t.Fatal("不应该建立新连接")
 	}
 
 	//地址字符串连接测试
