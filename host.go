@@ -262,12 +262,12 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	errChan := make(chan error)
 	wg := sync.WaitGroup{}
 	wg.Add(len(mas))
-	var errRes error
+	var errRes string
 
 	go func() {
 		wg.Wait()
 		select {
-		case errChan <- fmt.Errorf("dail all maddr fail %s\n", errRes.Error()):
+		case errChan <- fmt.Errorf("dail all maddr fail %s\n", errRes):
 		case <-time.After(time.Millisecond * 500):
 			return
 		}
@@ -283,7 +283,7 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 				case <-time.After(time.Second * 30):
 				}
 			} else {
-				errRes = err
+				errRes = err.Error()
 				if hst.cfg.Debug {
 					log.Println("conn error:", err)
 				}
