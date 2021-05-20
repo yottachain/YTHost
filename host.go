@@ -154,6 +154,7 @@ func (h *host) SendHTTPMsg(ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byt
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	if resp.StatusCode < 500 && resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("requeset 40X error")
 	}
@@ -161,9 +162,8 @@ func (h *host) SendHTTPMsg(ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byt
 	if resp.StatusCode >= 500 {
 		return nil, fmt.Errorf("response 50X error")
 	}
-
 	respData, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
+
 
 	return respData, err
 }
