@@ -7,6 +7,7 @@ import (
 	manet "github.com/multiformats/go-multiaddr-net"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/stat"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -117,6 +118,7 @@ func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int
 		} else {
 			_, _ = writer.Write(res)
 		}
+
 	})
 }
 
@@ -172,7 +174,9 @@ func (h *host) SendHTTPMsg(id peer.ID, ma multiaddr.Multiaddr, mid int32, msg []
 	}
 
 	respData, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	//defer resp.Body.Close()
+	io.Copy(ioutil.Discard, resp.Body)
+	resp.Body.Close()
 
 	return respData, err
 }
