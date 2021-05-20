@@ -205,6 +205,7 @@ func NewHost(options ...option.Option) (*host, error) {
 	hst.listenner = lis
 
 	tr := &http.Transport{
+		MaxIdleConns:       5,
 		IdleConnTimeout:    2 * time.Second,
 	}
 
