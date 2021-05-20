@@ -7,7 +7,6 @@ import (
 	manet "github.com/multiformats/go-multiaddr-net"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/stat"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -173,10 +172,8 @@ func (h *host) SendHTTPMsg(id peer.ID, ma multiaddr.Multiaddr, mid int32, msg []
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	respData, err := ioutil.ReadAll(resp.Body)
-	//defer resp.Body.Close()
-	io.Copy(ioutil.Discard, resp.Body)
-	resp.Body.Close()
 
 	return respData, err
 }
@@ -207,7 +204,11 @@ func NewHost(options ...option.Option) (*host, error) {
 
 	hst.listenner = lis
 
-	hst.client = &http.Client{}
+	tr := &http.Transport{
+		IdleConnTimeout:    2 * time.Second,
+	}
+
+	hst.client = &http.Client{Transport: tr}
 	hst.client.Timeout = time.Second * 30
 	//hst.client.Transport = hst.transport
 
