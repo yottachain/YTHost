@@ -104,7 +104,7 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 			if conn.GetClose() == true {
 				return
 			}
-			n, err:= conn.WriteConsume(defaultBufSize, flag, msg)
+			n, err := conn.WriteConsume(defaultBufSize, flag, msg)
 
 			if err != nil {
 				//Error.Printf("conn write consume error:%s\n", err)
