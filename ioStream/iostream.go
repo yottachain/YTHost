@@ -112,10 +112,19 @@ func NewStreamHandler(conn io.ReadWriteCloser, closeRwc bool) (sconn *ReadWriteC
 			}
 			if n > 0 {
 				l.Lock()
-				_, err = buf.Write(msg[0:n+6])
-				if nil == err {
-					_ = buf.Flush()
+				wn := 0
+				for {
+					nn, err := buf.Write(msg[wn : n+6])
+					wn += nn
+					if err != nil {
+						continue
+					}
+
+					if wn == n+6 {
+						break
+					}
 				}
+				_ = buf.Flush()
 				l.Unlock()
 			}
 		}
