@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
+	log "github.com/yottachain/YTDataNode/logger"
 	"github.com/yottachain/YTHost/peerInfo"
 	"time"
 )
@@ -87,6 +88,8 @@ func (ms *MsgService) HandleMsg(req Request, data *Response) error {
 	head.MsgId = req.MsgId
 	head.RemotePeerID = req.RemotePeerInfo.ID
 	head.RemotePubKey = req.RemotePeerInfo.PubKey
+
+	log.Println("[ComDebug] RemotePeerInfo.Id:",req.RemotePeerInfo.ID,"RemotePeerInfo.Addr",req.RemotePeerInfo.Addrs)
 
 	for _, v := range req.RemotePeerInfo.Addrs {
 		ma, _ := multiaddr.NewMultiaddr(v)
