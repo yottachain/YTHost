@@ -240,7 +240,7 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		make(map[peer.ID] *sync.Mutex),
 	}
 
-	//go cs.PongDetect()
+	go cs.PongDetect()
 
 	return cs
 }

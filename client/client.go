@@ -142,22 +142,41 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	go func() {
 		var res service.Response
-
+		errC := make(chan error)
 		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey,yc.Version}
 
-		if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res); err != nil {
-			select {
-			case errChan <- err:
-			case <-ctx.Done():
-				return
+		select {
+		case errC <- yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res):
+			err := <- errC
+			if nil != err {
+				select {
+				case errChan <- err:
+				case <-ctx.Done():
+					return
+				}
+			}else {
+				select {
+				case resChan <- res:
+				case <-ctx.Done():
+					return
+				}
 			}
-		} else {
-			select {
-			case resChan <- res:
-			case <-ctx.Done():
-				return
-			}
+		case <-ctx.Done():
+			return
 		}
+		//if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res); err != nil {
+		//	select {
+		//	case errChan <- err:
+		//	case <-ctx.Done():
+		//		return
+		//	}
+		//} else {
+		//	select {
+		//	case resChan <- res:
+		//	case <-ctx.Done():
+		//		return
+		//	}
+		//}
 	}()
 
 	select {
@@ -183,23 +202,46 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 
 	go func() {
 		var res string
-		if err := yc.Call("ms.Ping", "ping", &res); err != nil {
-			select {
-			case errorChan <- struct{}{}:
-			default:
+		var errC = make(chan error)
+		select {
+		case errC <- yc.Call("ms.Ping", "ping", &res):
+			err := <- errC
+			if err != nil {
+				select {
+				case errorChan <- struct{}{}:
+				default:
+				}
+			}else if string(res) != "pong" {
+				select {
+				case errorChan <- struct{}{}:
+				default:
+				}
+			} else {
+				select {
+				case successChan <- struct{}{}:
+				default:
+				}
 			}
-		} else if string(res) != "pong" {
-			select {
-			case errorChan <- struct{}{}:
-			default:
-			}
-
-		} else {
-			select {
-			case successChan <- struct{}{}:
-			default:
-			}
+		case <-ctx.Done():
+			errorChan <- struct{}{}
 		}
+		//if err := yc.Call("ms.Ping", "ping", &res); err != nil {
+		//	select {
+		//	case errorChan <- struct{}{}:
+		//	default:
+		//	}
+		//} else if string(res) != "pong" {
+		//	select {
+		//	case errorChan <- struct{}{}:
+		//	default:
+		//	}
+		//
+		//} else {
+		//	select {
+		//	case successChan <- struct{}{}:
+		//	default:
+		//	}
+		//}
 	}()
 
 	select {
