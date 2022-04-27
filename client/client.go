@@ -142,7 +142,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 
 	go func() {
 		var res service.Response
-		errC := make(chan error)
+		errC := make(chan error, 1)
 		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey,yc.Version}
 
 		select {
@@ -202,7 +202,7 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 
 	go func() {
 		var res string
-		var errC = make(chan error)
+		var errC = make(chan error, 1)
 		select {
 		case errC <- yc.Call("ms.Ping", "ping", &res):
 			err := <- errC

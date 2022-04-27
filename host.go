@@ -294,7 +294,7 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx quit")
+			return nil, fmt.Errorf("conn ctx quit")
 		case conn := <-connChan:
 			return conn, nil
 		case err := <-errChan:
