@@ -223,7 +223,10 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 				}
 			}
 		case <-ctx.Done():
-			errorChan <- struct{}{}
+			select {
+			case errorChan <- struct{}{}:
+			default:
+			}
 		}
 		//if err := yc.Call("ms.Ping", "ping", &res); err != nil {
 		//	select {
