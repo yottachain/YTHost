@@ -120,6 +120,11 @@ start:
 			goto start
 		}
 
+		if !c.Ping(ctx) {
+			_ = cs.Close(pid)
+			goto start
+		}
+
 		return c, nil
 	}
 }
