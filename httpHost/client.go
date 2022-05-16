@@ -63,7 +63,7 @@ func (clt *Client) RemotePeerPubkey() crypto.PubKey {
 
 func NewClient(localPeer peer.AddrInfo, remotePeer peer.AddrInfo) *Client {
 	return &Client{
-		&http.Client{},
+		&http.Client{Transport:&http.Transport{MaxIdleConnsPerHost:1000}},
 		localPeer,
 		remotePeer,
 	}
