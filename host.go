@@ -39,6 +39,7 @@ import (
 type host struct {
 	cfg      *config.Config
 	listener mnet.Listener
+	listenerCmd mnet.Listener
 	srv      *rpc.Server
 	service.HandlerMap
 	clientStore *clientStore.ClientStore
@@ -55,12 +56,18 @@ func NewHost(options ...option.Option) (*host, error) {
 	}
 
 	ls, err := mnet.Listen(hst.cfg.ListenAddr)
-
 	if err != nil {
 		return nil, err
+	}else {
+		hst.listener = ls
 	}
 
-	hst.listener = ls
+	ls, err = mnet.Listen(hst.cfg.ListenAddrCmd)
+	if err == nil {
+		hst.listenerCmd = ls
+	} else {
+		hst.listenerCmd = nil
+	}
 
 	srv := rpc.NewServer()
 	hst.srv = srv
@@ -86,6 +93,8 @@ func NewHost(options ...option.Option) (*host, error) {
 }
 
 func (hst *host) Accept() {
+	ctx := context.Background()
+
 	addrService := new(service.AddrService)
 	addrService.Info.ID = hst.cfg.ID
 	addrService.Info.Addrs = hst.Addrs()
@@ -104,26 +113,47 @@ func (hst *host) Accept() {
 		panic(err)
 	}
 
-	//for {
-	//	hst.srv.Accept(mnet.NetListener(hst.listener))
-	//}
-
-	lis := mnet.NetListener(hst.listener)
-	for {
-		conn, err := lis.Accept()
-		if err != nil {
-			log.Print("rpc.Serve: accept:", err.Error())
-			continue
+	go func() {
+		if hst.listener != nil {
+			lis := mnet.NetListener(hst.listener)
+			for {
+				conn, err := lis.Accept()
+				if err != nil {
+					fmt.Println("rpc.Serve: accept:", err.Error())
+					continue
+				}
+				go hst.Cs.SccAdd()
+				ac := connAutoCloser.New(conn)
+				ac.SetOuttime(time.Minute * 5)
+				go func() {
+					hst.srv.ServeConn(ac)
+					hst.Cs.SerCloseChanl <- struct{}{}
+				}()
+			}
 		}
-		go hst.Cs.SccAdd()
-		ac := connAutoCloser.New(conn)
-		ac.SetOuttime(time.Minute * 5)
-		go func() {
-			hst.srv.ServeConn(ac)
-			hst.Cs.SerCloseChanl <- struct{}{}
-		}()
-		//go hst.srv.ServeConn(ac)
-	}
+	}()
+
+	go func() {
+		if hst.listenerCmd != nil {
+			lis := mnet.NetListener(hst.listenerCmd)
+			for {
+				conn, err := lis.Accept()
+				if err != nil {
+					fmt.Println("rpc.Serve: accept:", err.Error())
+					continue
+				}
+				go hst.Cs.SccAdd()
+				ac := connAutoCloser.New(conn)
+				ac.SetOuttime(time.Minute * 5)
+				go func() {
+					hst.srv.ServeConn(ac)
+					hst.Cs.SerCloseChanl <- struct{}{}
+				}()
+			}
+		}
+	}()
+
+	<-ctx.Done()
 }
 
 func (h *host) SendHTTPMsg(ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byte, error) {
