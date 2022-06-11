@@ -10,11 +10,13 @@ import (
 	"github.com/yottachain/YTHost/service"
 	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
+
+	manet "github.com/multiformats/go-multiaddr-net"
 )
 
 type Host interface {
 	Accept()
-	Addrs() []multiaddr.Multiaddr
+	Addrs(manet.Listener) ([]multiaddr.Multiaddr, string)
 	Server() *rpc.Server
 	Config() *config.Config
 	Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)

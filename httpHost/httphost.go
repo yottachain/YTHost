@@ -40,22 +40,26 @@ func (h *host) Accept() {
 	http.Serve(hlis, nil)
 }
 
-func (h *host) Addrs() []multiaddr.Multiaddr {
-	port, err := h.listenner.Multiaddr().ValueForProtocol(multiaddr.P_TCP)
+func (h *host) Addrs(ls manet.Listener) ([]multiaddr.Multiaddr, string){
+	if ls == nil {
+		return nil, ""
+	}
+
+	port, err := ls.Multiaddr().ValueForProtocol(multiaddr.P_TCP)
 	if err != nil {
-		return nil
+		return nil, ""
 	}
 
 	tcpMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/tcp/%s", port))
 
 	if err != nil {
-		return nil
+		return nil, ""
 	}
 
 	var res []multiaddr.Multiaddr
 	maddrs, err := manet.InterfaceMultiaddrs()
 	if err != nil {
-		return nil
+		return nil, ""
 	}
 
 	for _, ma := range maddrs {
@@ -65,7 +69,7 @@ func (h *host) Addrs() []multiaddr.Multiaddr {
 		}
 		res = append(res, newMa)
 	}
-	return res
+	return res, port
 }
 
 func (h host) Server() *rpc.Server {
@@ -110,7 +114,9 @@ func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int
 		}
 		msgId := 0
 		_, _ = fmt.Sscanf(request.URL.String(),"/msg/%d", &msgId)
-		res, err := handlerFunc(reqData, service.Head{MsgId: int32(msgId), RemotePeerID: h.cfg.ID, RemoteAddrs: h.Addrs(), RemotePubKey: pk})
+
+		addrs, _ := h.Addrs(h.listenner)
+		res, err := handlerFunc(reqData, service.Head{MsgId: int32(msgId), RemotePeerID: h.cfg.ID, RemoteAddrs:addrs , RemotePubKey: pk})
 		if err != nil {
 			writer.WriteHeader(500)
 			_, _ = fmt.Fprintln(writer, err.Error())
