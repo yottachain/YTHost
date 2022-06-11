@@ -97,13 +97,15 @@ func (hst *host) Accept() {
 
 	addrService := new(service.AddrService)
 	addrService.Info.ID = hst.cfg.ID
-	addrService.Info.Addrs = hst.Addrs()
+	addrService.Info.Addrs, _ = hst.Addrs(hst.listener)
 	addrService.PubKey = hst.Config().Privkey.GetPublic()
 	addrService.Version = hst.Config().Version
 
 	msgService := new(service.MsgService)
 	msgService.Handler = hst.HandlerMap
-	msgService.Pi = peerInfo.PeerInfo{hst.cfg.ID, hst.Addrs()}
+
+	adds, _ := hst.Addrs(hst.listener)
+	msgService.Pi = peerInfo.PeerInfo{ID:hst.cfg.ID, Addrs:adds}
 
 	if err := hst.srv.RegisterName("as", addrService); err != nil {
 		panic(err)
@@ -218,23 +220,26 @@ func (hst *host) ClientStore() *clientStore.ClientStore {
 	return hst.clientStore
 }
 
-func (hst *host) Addrs() []multiaddr.Multiaddr {
+func (hst *host) Addrs(ls mnet.Listener) ([]multiaddr.Multiaddr, string) {
+	if ls == nil {
+		return nil, ""
+	}
 
-	port, err := hst.listener.Multiaddr().ValueForProtocol(multiaddr.P_TCP)
+	port, err := ls.Multiaddr().ValueForProtocol(multiaddr.P_TCP)
 	if err != nil {
-		return nil
+		return nil, ""
 	}
 
 	tcpMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/tcp/%s", port))
 
 	if err != nil {
-		return nil
+		return nil, ""
 	}
 
 	var res []multiaddr.Multiaddr
 	maddrs, err := mnet.InterfaceMultiaddrs()
 	if err != nil {
-		return nil
+		return nil, ""
 	}
 
 	for _, ma := range maddrs {
@@ -244,7 +249,7 @@ func (hst *host) Addrs() []multiaddr.Multiaddr {
 		}
 		res = append(res, newMa)
 	}
-	return res
+	return res, port
 }
 
 // Connect 连接远程节点
@@ -255,10 +260,11 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	}
 
 	clt := rpc.NewClient(conn)
+	Adds, _ := hst.Addrs(hst.listener)
 	ytclt, err := client.WarpClient(clt,
 		&peer.AddrInfo{
-		hst.cfg.ID,
-		hst.Addrs(),
+		ID:hst.cfg.ID,
+		Addrs: Adds,
 		},
 		hst.cfg.Privkey.GetPublic(),
 		hst.Config().Version,
