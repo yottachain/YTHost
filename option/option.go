@@ -15,6 +15,12 @@ func ListenAddr(ma multiaddr.Multiaddr) Option {
 	}
 }
 
+func ListenAddrCmd(ma multiaddr.Multiaddr) Option {
+	return func(cfg *config.Config) {
+		cfg.ListenAddrCmd = ma
+	}
+}
+
 func Identity(key crypto.PrivKey) Option {
 	return func(cfg *config.Config) {
 		cfg.Privkey = key

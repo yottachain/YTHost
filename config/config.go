@@ -11,6 +11,7 @@ import (
 
 type Config struct {
 	ListenAddr ma.Multiaddr
+	ListenAddrCmd ma.Multiaddr
 	Privkey    crypto.PrivKey
 	ID         peer.ID
 	Debug      bool
