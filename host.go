@@ -200,8 +200,8 @@ func (h *host) SendHTTPMsg(ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byt
 	return respData, err
 }
 
-func (hst *host) Listenner() mnet.Listener {
-	return hst.listener
+func (hst *host) Listenner() (mnet.Listener, mnet.Listener ){
+	return hst.listener, hst.listenerCmd
 }
 
 func (hst *host) Server() *rpc.Server {
