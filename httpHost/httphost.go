@@ -29,7 +29,6 @@ type host struct {
 	cfg       *config.Config
 	listenner manet.Listener
 	client    *http.Client
-	//transport *Transport
 	sync.Map
 	Cs *stat.ConnStat
 }
@@ -38,6 +37,10 @@ func (h *host) Accept() {
 	hlis := manet.NetListener(h.listenner)
 
 	http.Serve(hlis, nil)
+}
+
+func (h *host) Listenner() (manet.Listener, manet.Listener ){
+	return h.listenner, nil
 }
 
 func (h *host) Addrs(ls manet.Listener) ([]multiaddr.Multiaddr, string){

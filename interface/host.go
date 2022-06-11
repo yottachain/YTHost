@@ -29,4 +29,5 @@ type Host interface {
 	SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error)
 	SendMsgAuto(ctx context.Context, pid peer.ID,mid int32,  ma multiaddr.Multiaddr,msg []byte) ([]byte,error)
 	ConnStat() *stat.ConnStat
+	Listenner() (manet.Listener, manet.Listener)
 }
