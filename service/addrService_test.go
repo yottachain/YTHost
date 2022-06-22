@@ -15,7 +15,8 @@ func TestAddrService_RemotePeerInfo(t *testing.T) {
 	id, _ := peer.IDFromPrivateKey(pi)
 	hst, _ := ythost.NewHost()
 	addrService.Info.ID = id
-	addrService.Info.Addrs = hst.Addrs()
+	ls, _ := hst.Listenner()
+	addrService.Info.Addrs, _ = hst.Addrs(ls)
 	addrService.PubKey = pi.GetPublic()
 
 	peeri := new(service.PeerInfo)

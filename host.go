@@ -55,19 +55,30 @@ func NewHost(options ...option.Option) (*host, error) {
 		bindOp(hst.cfg)
 	}
 
-	ls, err := mnet.Listen(hst.cfg.ListenAddr)
-	if err != nil {
-		return nil, err
-	}else {
-		hst.listener = ls
+	if hst.cfg.ListenAddr != nil {
+		ls, err := mnet.Listen(hst.cfg.ListenAddr)
+		if err != nil {
+			return nil, err
+		}else {
+			hst.listener = ls
+		}
+	} else {
+		return nil, fmt.Errorf("listen addr is nil")
 	}
 
-	ls, err = mnet.Listen(hst.cfg.ListenAddrCmd)
-	if err == nil {
-		hst.listenerCmd = ls
+
+	if hst.cfg.ListenAddrCmd != nil &&
+		!(hst.cfg.ListenAddrCmd.Equal(hst.cfg.ListenAddr)){
+		ls, err := mnet.Listen(hst.cfg.ListenAddrCmd)
+		if err == nil {
+			hst.listenerCmd = ls
+		} else {
+			hst.listenerCmd = nil
+		}
 	} else {
 		hst.listenerCmd = nil
 	}
+
 
 	srv := rpc.NewServer()
 	hst.srv = srv
@@ -282,10 +293,10 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 
 func (hst *host)SendMsgAuto(ctx context.Context, pid peer.ID,mid int32,  ma multiaddr.Multiaddr,msg []byte) ([]byte,error) {
 	log.Printf("[YTHost]mid %x, buf len %d\n",mid,len(msg))
-	if _,err:=ma.ValueForProtocol(multiaddr.P_HTTP);err ==nil {
+	if _, err := ma.ValueForProtocol(multiaddr.P_HTTP);err ==nil {
 		return hst.SendHTTPMsg(ma,mid,msg)
 	} else {
-		clt,err :=hst.clientStore.Get(ctx,pid,[]multiaddr.Multiaddr{ma})
+		clt, err := hst.clientStore.Get(ctx,pid,[]multiaddr.Multiaddr{ma})
 		if err != nil {
 			return nil,err
 		}
