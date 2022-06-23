@@ -2,6 +2,8 @@ package YTinterface
 
 import (
 	"context"
+	"net/rpc"
+
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/client"
@@ -9,7 +11,6 @@ import (
 	"github.com/yottachain/YTHost/config"
 	"github.com/yottachain/YTHost/service"
 	"github.com/yottachain/YTHost/stat"
-	"net/rpc"
 )
 
 type Host interface {
@@ -24,7 +25,8 @@ type Host interface {
 	RemoveGlobalHandler()
 	ConnectAddrStrings(ctx context.Context, id string, addrs []string) (*client.YTHostClient, error)
 	ClientStore() *clientStore.ClientStore
+	SendMsgBlock(pid peer.ID, mid int32, msg []byte) ([]byte, error)
 	SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error)
-	SendMsgAuto(ctx context.Context, pid peer.ID,mid int32,  ma multiaddr.Multiaddr,msg []byte) ([]byte,error)
+	SendMsgAuto(ctx context.Context, pid peer.ID, mid int32, ma multiaddr.Multiaddr, msg []byte) ([]byte, error)
 	ConnStat() *stat.ConnStat
 }

@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	manet "github.com/multiformats/go-multiaddr-net"
-	"github.com/yottachain/YTHost/option"
-	"github.com/yottachain/YTHost/stat"
 	"io/ioutil"
 	"net/http"
 	"sync"
 	"time"
+
+	manet "github.com/multiformats/go-multiaddr-net"
+	"github.com/yottachain/YTHost/option"
+	"github.com/yottachain/YTHost/stat"
 
 	_ "net/http/pprof"
 	"net/rpc"
@@ -109,7 +110,7 @@ func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int
 			return
 		}
 		msgId := 0
-		_, _ = fmt.Sscanf(request.URL.String(),"/msg/%d", &msgId)
+		_, _ = fmt.Sscanf(request.URL.String(), "/msg/%d", &msgId)
 		res, err := handlerFunc(reqData, service.Head{MsgId: int32(msgId), RemotePeerID: h.cfg.ID, RemoteAddrs: h.Addrs(), RemotePubKey: pk})
 		if err != nil {
 			writer.WriteHeader(500)
@@ -141,11 +142,15 @@ func (h host) ClientStore() *clientStore.ClientStore {
 	panic("implement me")
 }
 
+func (h host) SendMsgBlock(pid peer.ID, mid int32, msg []byte) ([]byte, error) {
+	panic("implement me")
+}
+
 func (h host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error) {
 	panic("implement me")
 }
 
-func (hst *host)SendMsgAuto(ctx context.Context, pid peer.ID,mid int32,  ma multiaddr.Multiaddr,msg []byte) ([]byte,error) {
+func (hst *host) SendMsgAuto(ctx context.Context, pid peer.ID, mid int32, ma multiaddr.Multiaddr, msg []byte) ([]byte, error) {
 	panic("implement me")
 }
 
@@ -205,8 +210,8 @@ func NewHost(options ...option.Option) (*host, error) {
 	hst.listenner = lis
 
 	tr := &http.Transport{
-		MaxIdleConns:       5,
-		IdleConnTimeout:    2 * time.Second,
+		MaxIdleConns:    5,
+		IdleConnTimeout: 2 * time.Second,
 	}
 
 	hst.client = &http.Client{Transport: tr}

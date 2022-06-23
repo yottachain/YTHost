@@ -3,29 +3,31 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/multiformats/go-multiaddr"
-	"github.com/yottachain/YTHost/service"
-	"github.com/yottachain/YTHost/stat"
 	"net/rpc"
 	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/yottachain/YTHost/service"
+	"github.com/yottachain/YTHost/stat"
 )
 
 var psi int
+
 func init() {
 	ssi := os.Getenv("P2P_SEND_MAX_INTERVAL")
 	if ssi == "" {
 		psi = 1800000
-	}else {
+	} else {
 		si, err := strconv.Atoi(ssi)
 		if err != nil {
 			psi = 1800000
-		}else {
+		} else {
 			psi = si
 		}
 	}
@@ -37,15 +39,15 @@ type YTHostClient struct {
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	isClosed        bool
-	lastSendTime	time.Time
-	uses  			int32
+	lastSendTime    atomic.Value
+	uses            int32
 	Version         int32
-	RPI *service.PeerInfo
-	Cs *stat.ConnStat
+	RPI             *service.PeerInfo
+	Cs              *stat.ConnStat
 	sync.Mutex
 }
 
-func (yc *YTHostClient)GetRPI()error{
+func (yc *YTHostClient) GetRPI() error {
 	var pi service.PeerInfo
 	if err := yc.Call("as.RemotePeerInfo", "", &pi); err != nil {
 		return err
@@ -57,7 +59,7 @@ func (yc *YTHostClient)GetRPI()error{
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
 	var ai peer.AddrInfo
 	if yc.RPI == nil {
-		err:=yc.GetRPI()
+		err := yc.GetRPI()
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -74,7 +76,7 @@ func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
 
 func (yc *YTHostClient) RemotePeerPubkey() crypto.PubKey {
 	if yc.RPI == nil {
-		err:=yc.GetRPI()
+		err := yc.GetRPI()
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -85,7 +87,7 @@ func (yc *YTHostClient) RemotePeerPubkey() crypto.PubKey {
 
 func (yc *YTHostClient) RemotePeerVersion() int32 {
 	if yc.RPI == nil {
-		err:=yc.GetRPI()
+		err := yc.GetRPI()
 		if err != nil {
 			fmt.Println(err)
 			return 0
@@ -104,12 +106,12 @@ func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
 	return pi
 }
 
-func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int32, cs *stat.ConnStat) (*YTHostClient, error) {
+func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat) (*YTHostClient, error) {
 	var yc = new(YTHostClient)
 	yc.Client = clt
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
-	yc.lastSendTime = time.Now()
+	yc.lastSendTime.Store(time.Now().Unix())
 	yc.uses = 0
 	yc.Version = v
 	yc.Cs = cs
@@ -125,6 +127,20 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey,v int32, cs
 	return yc, nil
 }
 
+func (yc *YTHostClient) SendMsgBlock(id int32, data []byte) ([]byte, error) {
+	atomic.AddInt32(&yc.uses, 1)
+	defer atomic.AddInt32(&yc.uses, -1)
+	var res service.Response
+	pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey, yc.Version}
+	yc.lastSendTime.Store(time.Now().Unix())
+	err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res)
+	if err != nil {
+		return nil, err
+	} else {
+		return res.Data, nil
+	}
+}
+
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
 
 	resChan := make(chan service.Response)
@@ -136,25 +152,24 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 		}
 		atomic.AddInt32(&yc.uses, -1)
 	}()
-
-	yc.lastSendTime = time.Now()
+	yc.lastSendTime.Store(time.Now().Unix())
 	atomic.AddInt32(&yc.uses, 1)
 
 	go func() {
 		var res service.Response
 		errC := make(chan error, 1)
-		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey,yc.Version}
+		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey, yc.Version}
 
 		select {
 		case errC <- yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res):
-			err := <- errC
+			err := <-errC
 			if nil != err {
 				select {
 				case errChan <- err:
 				case <-ctx.Done():
 					return
 				}
-			}else {
+			} else {
 				select {
 				case resChan <- res:
 				case <-ctx.Done():
@@ -205,13 +220,13 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 		var errC = make(chan error, 1)
 		select {
 		case errC <- yc.Call("ms.Ping", "ping", &res):
-			err := <- errC
+			err := <-errC
 			if err != nil {
 				select {
 				case errorChan <- struct{}{}:
 				default:
 				}
-			}else if string(res) != "pong" {
+			} else if string(res) != "pong" {
 				select {
 				case errorChan <- struct{}{}:
 				default:
@@ -280,9 +295,11 @@ func (yc *YTHostClient) SendMsgClose(ctx context.Context, id int32, data []byte)
 }
 
 func (yc *YTHostClient) IsconnTimeOut() bool {
-	if time.Now().Sub(yc.lastSendTime).Milliseconds() > int64(psi) {
+	obj := yc.lastSendTime.Load()
+	t, _ := obj.(int64)
+	if time.Now().Sub(time.Unix(t, 0)).Milliseconds() > int64(psi) {
 		return true
-	}else {
+	} else {
 		return false
 	}
 }
@@ -290,7 +307,7 @@ func (yc *YTHostClient) IsconnTimeOut() bool {
 func (yc *YTHostClient) IsUsed() bool {
 	if atomic.LoadInt32(&yc.uses) == 0 {
 		return false
-	}else {
+	} else {
 		return true
 	}
 }

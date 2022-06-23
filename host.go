@@ -43,7 +43,7 @@ type host struct {
 	service.HandlerMap
 	clientStore *clientStore.ClientStore
 	httpClient  *http.Client
-	Cs *stat.ConnStat
+	Cs          *stat.ConnStat
 }
 
 func NewHost(options ...option.Option) (*host, error) {
@@ -164,7 +164,6 @@ func (h *host) SendHTTPMsg(ma multiaddr.Multiaddr, mid int32, msg []byte) ([]byt
 	}
 	respData, err := ioutil.ReadAll(resp.Body)
 
-
 	return respData, err
 }
 
@@ -227,8 +226,8 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	clt := rpc.NewClient(conn)
 	ytclt, err := client.WarpClient(clt,
 		&peer.AddrInfo{
-		hst.cfg.ID,
-		hst.Addrs(),
+			hst.cfg.ID,
+			hst.Addrs(),
 		},
 		hst.cfg.Privkey.GetPublic(),
 		hst.Config().Version,
@@ -244,16 +243,16 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	return ytclt, nil
 }
 
-func (hst *host)SendMsgAuto(ctx context.Context, pid peer.ID,mid int32,  ma multiaddr.Multiaddr,msg []byte) ([]byte,error) {
-	log.Printf("[YTHost]mid %x, buf len %d\n",mid,len(msg))
-	if _,err:=ma.ValueForProtocol(multiaddr.P_HTTP);err ==nil {
-		return hst.SendHTTPMsg(ma,mid,msg)
+func (hst *host) SendMsgAuto(ctx context.Context, pid peer.ID, mid int32, ma multiaddr.Multiaddr, msg []byte) ([]byte, error) {
+	log.Printf("[YTHost]mid %x, buf len %d\n", mid, len(msg))
+	if _, err := ma.ValueForProtocol(multiaddr.P_HTTP); err == nil {
+		return hst.SendHTTPMsg(ma, mid, msg)
 	} else {
-		clt,err :=hst.clientStore.Get(ctx,pid,[]multiaddr.Multiaddr{ma})
+		clt, err := hst.clientStore.Get(ctx, pid, []multiaddr.Multiaddr{ma})
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
-		return clt.SendMsg(ctx,mid,msg)
+		return clt.SendMsg(ctx, mid, msg)
 	}
 }
 
@@ -331,5 +330,14 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
 	}
 	res, err := clt.SendMsg(ctx, mid, msg)
+	return res, err
+}
+
+func (hst *host) SendMsgBlock(pid peer.ID, mid int32, msg []byte) ([]byte, error) {
+	clt, ok := hst.ClientStore().GetClient(pid)
+	if !ok {
+		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
+	}
+	res, err := clt.SendMsgBlock(mid, msg)
 	return res, err
 }
