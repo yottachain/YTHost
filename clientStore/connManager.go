@@ -3,8 +3,6 @@ package clientStore
 import (
 	"context"
 	"fmt"
-	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -13,23 +11,6 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/yottachain/YTHost/client"
 )
-
-var ppi int //
-
-func init() {
-	spi := os.Getenv("P2P_PING_INTERVAL")
-	//ppi = 60000
-	if spi == "" {
-		ppi = 20000
-	} else {
-		pi, err := strconv.Atoi(spi)
-		if err != nil {
-			ppi = 20000
-		} else {
-			ppi = pi
-		}
-	}
-}
 
 type ClientStore struct {
 	connect func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)
@@ -173,6 +154,7 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 //}
 
 func (cs *ClientStore) PongDetect() {
+	fmt.Println("PongDetect....................")
 	for {
 		wg := &sync.WaitGroup{}
 		f := func(k, v interface{}) bool {
@@ -180,7 +162,6 @@ func (cs *ClientStore) PongDetect() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-
 				if c.IsconnTimeOut() && !c.IsUsed() {
 					//fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
 					cs.Lock()
@@ -219,14 +200,10 @@ func (cs *ClientStore) PongDetect() {
 					return
 				}
 			}()
-
 			return true
 		}
-
-		<-time.After(time.Duration(ppi) * time.Millisecond)
-		//cs.Lock()
+		time.Sleep(time.Millisecond * time.Duration(client.PPI))
 		cs.Map.Range(f)
-		//cs.Unlock()
 		wg.Wait()
 	}
 }

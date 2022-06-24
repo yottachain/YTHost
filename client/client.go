@@ -6,7 +6,6 @@ import (
 	"net/rpc"
 	"os"
 	"strconv"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -17,18 +16,30 @@ import (
 	"github.com/yottachain/YTHost/stat"
 )
 
-var psi int
+var PSI int
+var PPI int
 
 func init() {
 	ssi := os.Getenv("P2P_SEND_MAX_INTERVAL")
 	if ssi == "" {
-		psi = 1800000
+		PSI = 600000
 	} else {
 		si, err := strconv.Atoi(ssi)
 		if err != nil {
-			psi = 1800000
+			PSI = 600000
 		} else {
-			psi = si
+			PSI = si
+		}
+	}
+	spi := os.Getenv("P2P_PING_INTERVAL")
+	if spi == "" {
+		PPI = 60000
+	} else {
+		pi, err := strconv.Atoi(spi)
+		if err != nil {
+			PPI = 60000
+		} else {
+			PPI = pi
 		}
 	}
 }
@@ -38,13 +49,11 @@ type YTHostClient struct {
 	localPeerID     peer.ID
 	localPeerAddrs  []string
 	localPeerPubKey []byte
-	isClosed        bool
+	isClosed        atomic.Value
 	lastSendTime    atomic.Value
-	uses            int32
 	Version         int32
 	RPI             *service.PeerInfo
 	Cs              *stat.ConnStat
-	sync.Mutex
 }
 
 func (yc *YTHostClient) GetRPI() error {
@@ -110,15 +119,12 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, c
 	yc.localPeerID = pi.ID
 	yc.localPeerPubKey, _ = pk.Raw()
 	yc.lastSendTime.Store(time.Now().Unix())
-	yc.uses = 0
 	yc.Version = v
 	yc.Cs = cs
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
 	}
-	yc.Lock()
-	yc.isClosed = false
-	yc.Unlock()
+	yc.isClosed.Store(false)
 	return yc, nil
 }
 
@@ -128,15 +134,19 @@ func (yc *YTHostClient) AyncSendMsg(ctx context.Context, id int32, data []byte) 
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) (result []byte, e error) {
 	defer func() {
-		atomic.AddInt32(&yc.uses, -1)
 		if err := recover(); err != nil {
 			e = err.(error)
 		}
 	}()
 	yc.lastSendTime.Store(time.Now().Unix())
-	atomic.AddInt32(&yc.uses, 1)
-	pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey, yc.Version}
-	call := yc.Go("ms.HandleMsg", service.Request{id, data, pi}, new(service.Response), make(chan *rpc.Call, 1))
+	req := service.Request{MsgId: id,
+		ReqData: data,
+		RemotePeerInfo: service.PeerInfo{ID: yc.localPeerID,
+			Addrs:   yc.localPeerAddrs,
+			PubKey:  yc.localPeerPubKey,
+			Version: yc.Version},
+	}
+	call := yc.Go("ms.HandleMsg", req, new(service.Response), make(chan *rpc.Call, 1))
 	select {
 	case <-call.Done:
 		if call.Error != nil {
@@ -154,39 +164,31 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 	select {
 	case <-call.Done:
 		if call.Error != nil {
-			fmt.Println("ping err")
 			return false
 		} else {
 			res := call.Reply.(*string)
 			if *res != "pong" {
-				fmt.Println("ping !pong")
 				return false
 			} else {
-				fmt.Println("ping ok")
 				return true
 			}
 		}
 	case <-ctx.Done():
-		fmt.Println("ping time out")
 		return false
 	}
 }
 
 func (yc *YTHostClient) Close() error {
-	yc.Lock()
-	defer yc.Unlock()
-	if yc.isClosed {
+	if yc.IsClosed() {
 		return nil
 	}
-	yc.isClosed = true
+	yc.isClosed.Store(true)
 	yc.Cs.CccSub()
 	return yc.Client.Close()
 }
 
 func (yc *YTHostClient) IsClosed() bool {
-	yc.Lock()
-	defer yc.Unlock()
-	return yc.isClosed
+	return yc.isClosed.Load().(bool)
 }
 
 func (yc *YTHostClient) SendMsgClose(ctx context.Context, id int32, data []byte) ([]byte, error) {
@@ -195,9 +197,8 @@ func (yc *YTHostClient) SendMsgClose(ctx context.Context, id int32, data []byte)
 }
 
 func (yc *YTHostClient) IsconnTimeOut() bool {
-	obj := yc.lastSendTime.Load()
-	t, _ := obj.(int64)
-	if time.Now().Sub(time.Unix(t, 0)).Milliseconds() > int64(psi) {
+	t := yc.lastSendTime.Load().(int64)
+	if time.Since(time.Unix(t, 0)).Milliseconds() > int64(PSI) {
 		return true
 	} else {
 		return false
@@ -205,9 +206,12 @@ func (yc *YTHostClient) IsconnTimeOut() bool {
 }
 
 func (yc *YTHostClient) IsUsed() bool {
-	if atomic.LoadInt32(&yc.uses) == 0 {
+	t := yc.lastSendTime.Load().(int64)
+	if time.Since(time.Unix(t, 0)).Milliseconds() > int64(PPI) {
+		fmt.Println("no use....................")
 		return false
 	} else {
+		fmt.Println(" use....................")
 		return true
 	}
 }
