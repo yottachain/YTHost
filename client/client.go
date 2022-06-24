@@ -158,6 +158,7 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 		} else {
 			res := call.Reply.(*string)
 			if *res != "pong" {
+				fmt.Println("ping ok")
 				return false
 			} else {
 				return true
