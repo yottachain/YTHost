@@ -208,10 +208,8 @@ func (yc *YTHostClient) IsconnTimeOut() bool {
 func (yc *YTHostClient) IsUsed() bool {
 	t := yc.lastSendTime.Load().(int64)
 	if time.Since(time.Unix(t, 0)).Milliseconds() > int64(PPI) {
-		fmt.Println("no use....................")
 		return false
 	} else {
-		fmt.Println(" use....................")
 		return true
 	}
 }

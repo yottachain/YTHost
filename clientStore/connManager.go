@@ -149,12 +149,7 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 	return nil, ok
 }
 
-// Len 返回当前连接数
-//func (cs *ClientStore) Len() int {
-//}
-
 func (cs *ClientStore) PongDetect() {
-	fmt.Println("PongDetect....................")
 	for {
 		wg := &sync.WaitGroup{}
 		f := func(k, v interface{}) bool {
@@ -163,7 +158,7 @@ func (cs *ClientStore) PongDetect() {
 			go func() {
 				defer wg.Done()
 				if c.IsconnTimeOut() && !c.IsUsed() {
-					//fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
+					fmt.Printf("No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
 					cs.Lock()
 					_ = c.Close()
 					cs.Map.Delete(k.(peer.ID))
@@ -178,7 +173,7 @@ func (cs *ClientStore) PongDetect() {
 					for i := 0; i < pongs; i++ {
 						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 						if !c.Ping(ctx) {
-							//fmt.Printf("heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
+							fmt.Printf("heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
 							pstatus = false
 							cancel()
 							<-time.After(100 * time.Millisecond)
@@ -193,7 +188,7 @@ func (cs *ClientStore) PongDetect() {
 				}
 
 				if !pstatus && !c.IsUsed() {
-					//fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
+					fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
 					cs.Lock()
 					_ = c.Close()
 					cs.Map.Delete(k.(peer.ID))
