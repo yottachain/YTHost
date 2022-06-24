@@ -142,6 +142,10 @@ func (h host) ClientStore() *clientStore.ClientStore {
 	panic("implement me")
 }
 
+func (h host) AsyncSendMsg(pid peer.ID, mid int32, msg []byte) (*rpc.Call, error) {
+	panic("implement me")
+}
+
 func (h host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error) {
 	panic("implement me")
 }

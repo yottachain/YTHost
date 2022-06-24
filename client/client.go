@@ -54,6 +54,7 @@ type YTHostClient struct {
 	Version         int32
 	RPI             *service.PeerInfo
 	Cs              *stat.ConnStat
+	Kill            func(c *YTHostClient)
 }
 
 func (yc *YTHostClient) GetRPI() error {
@@ -128,16 +129,7 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, c
 	return yc, nil
 }
 
-func (yc *YTHostClient) AyncSendMsg(ctx context.Context, id int32, data []byte) *rpc.Call {
-	return nil
-}
-
-func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) (result []byte, e error) {
-	defer func() {
-		if err := recover(); err != nil {
-			e = err.(error)
-		}
-	}()
+func (yc *YTHostClient) AsyncSendMsg(id int32, data []byte) *rpc.Call {
 	yc.lastSendTime.Store(time.Now().Unix())
 	req := service.Request{MsgId: id,
 		ReqData: data,
@@ -146,10 +138,15 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) (res
 			PubKey:  yc.localPeerPubKey,
 			Version: yc.Version},
 	}
-	call := yc.Go("ms.HandleMsg", req, new(service.Response), make(chan *rpc.Call, 1))
+	return yc.Go("ms.HandleMsg", req, new(service.Response), make(chan *rpc.Call, 1))
+}
+
+func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) (result []byte, e error) {
+	call := yc.AsyncSendMsg(id, data)
 	select {
 	case <-call.Done:
 		if call.Error != nil {
+			yc.Kill(yc)
 			return nil, call.Error
 		} else {
 			return call.Reply.(*service.Response).Data, nil
@@ -198,18 +195,10 @@ func (yc *YTHostClient) SendMsgClose(ctx context.Context, id int32, data []byte)
 
 func (yc *YTHostClient) IsconnTimeOut() bool {
 	t := yc.lastSendTime.Load().(int64)
-	if time.Since(time.Unix(t, 0)).Milliseconds() > int64(PSI) {
-		return true
-	} else {
-		return false
-	}
+	return time.Since(time.Unix(t, 0)).Milliseconds() > int64(PSI)
 }
 
 func (yc *YTHostClient) IsUsed() bool {
 	t := yc.lastSendTime.Load().(int64)
-	if time.Since(time.Unix(t, 0)).Milliseconds() > int64(PPI) {
-		return false
-	} else {
-		return true
-	}
+	return !(time.Since(time.Unix(t, 0)).Milliseconds() > int64(PPI))
 }

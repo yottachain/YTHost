@@ -332,3 +332,11 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 	res, err := clt.SendMsg(ctx, mid, msg)
 	return res, err
 }
+
+func (hst *host) AsyncSendMsg(pid peer.ID, mid int32, msg []byte) (*rpc.Call, error) {
+	clt, ok := hst.ClientStore().GetClient(pid)
+	if !ok {
+		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
+	}
+	return clt.AsyncSendMsg(mid, msg), nil
+}

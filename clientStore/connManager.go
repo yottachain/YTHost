@@ -90,6 +90,7 @@ start:
 		if clt, err := cs.connect(ctx, pid, mas); err != nil {
 			return nil, err
 		} else {
+			clt.Kill = cs.KillMe
 			cs.Map.Store(pid, clt)
 			// 创建clt完成后返回到开始
 			goto start
@@ -149,6 +150,13 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 	return nil, ok
 }
 
+func (cs *ClientStore) KillMe(c *client.YTHostClient) {
+	cs.Lock()
+	defer cs.Unlock()
+	_ = c.Close()
+	cs.Map.Delete(c.LocalPeer().ID)
+}
+
 func (cs *ClientStore) PongDetect() {
 	for {
 		wg := &sync.WaitGroup{}
@@ -165,7 +173,6 @@ func (cs *ClientStore) PongDetect() {
 					cs.Unlock()
 					return
 				}
-
 				//当前链接没有通信的情况才发送心跳，否则不用发送心跳检测
 				var pstatus = true
 				if !c.IsUsed() {
@@ -173,14 +180,13 @@ func (cs *ClientStore) PongDetect() {
 					for i := 0; i < pongs; i++ {
 						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 						if !c.Ping(ctx) {
-							fmt.Printf("heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
+							//fmt.Printf("heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
 							pstatus = false
 							cancel()
 							<-time.After(100 * time.Millisecond)
 						} else {
-							fmt.Printf("heartbeat ping %d times success pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
+							//fmt.Printf("heartbeat ping %d times success pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
 							pstatus = true
-
 							cancel()
 							break
 						}
@@ -188,7 +194,7 @@ func (cs *ClientStore) PongDetect() {
 				}
 
 				if !pstatus && !c.IsUsed() {
-					fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
+					//fmt.Printf("heartbeat ping fail pid=%s, connect close\n", peer.Encode(k.(peer.ID)))
 					cs.Lock()
 					_ = c.Close()
 					cs.Map.Delete(k.(peer.ID))
