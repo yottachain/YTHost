@@ -154,17 +154,20 @@ func (yc *YTHostClient) Ping(ctx context.Context) bool {
 	select {
 	case <-call.Done:
 		if call.Error != nil {
+			fmt.Println("ping err")
 			return false
 		} else {
 			res := call.Reply.(*string)
 			if *res != "pong" {
-				fmt.Println("ping ok")
+				fmt.Println("ping !pong")
 				return false
 			} else {
+				fmt.Println("ping ok")
 				return true
 			}
 		}
 	case <-ctx.Done():
+		fmt.Println("ping time out")
 		return false
 	}
 }
