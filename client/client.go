@@ -141,7 +141,30 @@ func (yc *YTHostClient) SendMsgBlock(id int32, data []byte) ([]byte, error) {
 	}
 }
 
-func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
+func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) (result []byte, e error) {
+	defer func() {
+		atomic.AddInt32(&yc.uses, -1)
+		if err := recover(); err != nil {
+			e = err.(error)
+		}
+	}()
+	yc.lastSendTime.Store(time.Now().Unix())
+	atomic.AddInt32(&yc.uses, 1)
+	pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey, yc.Version}
+	call := yc.Go("ms.HandleMsg", service.Request{id, data, pi}, new(service.Response), make(chan *rpc.Call, 1))
+	select {
+	case <-call.Done:
+		if call.Error != nil {
+			return nil, call.Error
+		} else {
+			return call.Reply.(*service.Response).Data, nil
+		}
+	case <-ctx.Done():
+		return nil, fmt.Errorf("ctx time out")
+	}
+}
+
+func (yc *YTHostClient) SendMsg2(ctx context.Context, id int32, data []byte) ([]byte, error) {
 
 	resChan := make(chan service.Response)
 	errChan := make(chan error)
