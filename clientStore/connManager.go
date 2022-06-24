@@ -183,8 +183,9 @@ func (cs *ClientStore) PongDetect() {
 							cancel()
 							<-time.After(100 * time.Millisecond)
 						} else {
-							//fmt.Printf("heartbeat ping %d times success pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
+							fmt.Printf("heartbeat ping %d times success pid=%s\n", i+1, peer.Encode(k.(peer.ID)))
 							pstatus = true
+
 							cancel()
 							break
 						}
