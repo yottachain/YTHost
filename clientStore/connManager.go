@@ -3,28 +3,29 @@ package clientStore
 import (
 	"context"
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/mr-tron/base58"
-	"github.com/multiformats/go-multiaddr"
-	"github.com/yottachain/YTHost/client"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/mr-tron/base58"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/yottachain/YTHost/client"
 )
 
-var ppi int	//
+var ppi int //
 
 func init() {
 	spi := os.Getenv("P2P_PING_INTERVAL")
 	//ppi = 60000
 	if spi == "" {
 		ppi = 20000
-	}else {
+	} else {
 		pi, err := strconv.Atoi(spi)
 		if err != nil {
 			ppi = 20000
-		}else {
+		} else {
 			ppi = pi
 		}
 	}
@@ -35,22 +36,22 @@ type ClientStore struct {
 	q       chan struct{}
 	sync.Map
 	sync.Mutex
-	IdLockMap map[peer.ID] *sync.Mutex
+	IdLockMap map[peer.ID]*sync.Mutex
 }
 
-func (cs *ClientStore) GetUsePid(pid peer.ID) (c *client.YTHostClient){
+func (cs *ClientStore) GetUsePid(pid peer.ID) (c *client.YTHostClient) {
 	//cs.Lock()
 	//defer cs.Unlock()
 	_c, ok := cs.Map.Load(pid)
 	if ok {
 		c = _c.(*client.YTHostClient)
-	}else {
+	} else {
 		c = nil
 	}
 	return
 }
 
-func (cs *ClientStore) BackConnect (pid peer.ID, addrs []string) {
+func (cs *ClientStore) BackConnect(pid peer.ID, addrs []string) {
 	var mas = make([]multiaddr.Multiaddr, len(addrs))
 	for k, v := range addrs {
 		ma, err := multiaddr.NewMultiaddr(v)
@@ -59,7 +60,7 @@ func (cs *ClientStore) BackConnect (pid peer.ID, addrs []string) {
 		}
 		mas[k] = ma
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(10))
 	defer cancel()
 	_, _ = cs.Get(ctx, pid, mas)
@@ -76,7 +77,7 @@ func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 }
 
 func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-	cs.q <- struct {}{}
+	cs.q <- struct{}{}
 	defer func() {
 		<-cs.q
 	}()
@@ -174,7 +175,6 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 func (cs *ClientStore) PongDetect() {
 	for {
 		wg := &sync.WaitGroup{}
-
 		f := func(k, v interface{}) bool {
 			c := v.(*client.YTHostClient)
 			wg.Add(1)
@@ -223,7 +223,7 @@ func (cs *ClientStore) PongDetect() {
 			return true
 		}
 
-		<- time.After(time.Duration(ppi)*time.Millisecond)
+		<-time.After(time.Duration(ppi) * time.Millisecond)
 		//cs.Lock()
 		cs.Map.Range(f)
 		//cs.Unlock()
@@ -237,10 +237,8 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		make(chan struct{}, 50000),
 		sync.Map{},
 		sync.Mutex{},
-		make(map[peer.ID] *sync.Mutex),
+		make(map[peer.ID]*sync.Mutex),
 	}
-
 	go cs.PongDetect()
-
 	return cs
 }

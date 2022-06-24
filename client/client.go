@@ -64,13 +64,11 @@ func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
 			fmt.Println(err)
 		}
 	}
-
 	ai.ID = yc.RPI.ID
 	for _, addr := range yc.RPI.Addrs {
 		ma, _ := multiaddr.NewMultiaddr(addr)
 		ai.Addrs = append(ai.Addrs, ma)
 	}
-
 	return ai
 }
 
@@ -115,30 +113,17 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, c
 	yc.uses = 0
 	yc.Version = v
 	yc.Cs = cs
-
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
 	}
-
 	yc.Lock()
 	yc.isClosed = false
 	yc.Unlock()
-
 	return yc, nil
 }
 
-func (yc *YTHostClient) SendMsgBlock(id int32, data []byte) ([]byte, error) {
-	atomic.AddInt32(&yc.uses, 1)
-	defer atomic.AddInt32(&yc.uses, -1)
-	var res service.Response
-	pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey, yc.Version}
-	yc.lastSendTime.Store(time.Now().Unix())
-	err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res)
-	if err != nil {
-		return nil, err
-	} else {
-		return res.Data, nil
-	}
+func (yc *YTHostClient) AyncSendMsg(ctx context.Context, id int32, data []byte) *rpc.Call {
+	return nil
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) (result []byte, e error) {
@@ -164,134 +149,22 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) (res
 	}
 }
 
-func (yc *YTHostClient) SendMsg2(ctx context.Context, id int32, data []byte) ([]byte, error) {
-
-	resChan := make(chan service.Response)
-	errChan := make(chan error)
-
-	defer func() {
-		if err := recover(); err != nil {
-			errChan <- err.(error)
-		}
-		atomic.AddInt32(&yc.uses, -1)
-	}()
-	yc.lastSendTime.Store(time.Now().Unix())
-	atomic.AddInt32(&yc.uses, 1)
-
-	go func() {
-		var res service.Response
-		errC := make(chan error, 1)
-		pi := service.PeerInfo{yc.localPeerID, yc.localPeerAddrs, yc.localPeerPubKey, yc.Version}
-
-		select {
-		case errC <- yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res):
-			err := <-errC
-			if nil != err {
-				select {
-				case errChan <- err:
-				case <-ctx.Done():
-					return
-				}
-			} else {
-				select {
-				case resChan <- res:
-				case <-ctx.Done():
-					return
-				}
-			}
-		case <-ctx.Done():
-			return
-		}
-		//if err := yc.Call("ms.HandleMsg", service.Request{id, data, pi}, &res); err != nil {
-		//	select {
-		//	case errChan <- err:
-		//	case <-ctx.Done():
-		//		return
-		//	}
-		//} else {
-		//	select {
-		//	case resChan <- res:
-		//	case <-ctx.Done():
-		//		return
-		//	}
-		//}
-	}()
-
-	select {
-	case <-ctx.Done():
-		return nil, fmt.Errorf("ctx time out")
-	case rd := <-resChan:
-		return rd.Data, nil
-	case err := <-errChan:
-		return nil, err
-	}
-}
-
 func (yc *YTHostClient) Ping(ctx context.Context) bool {
-
-	successChan := make(chan struct{})
-	errorChan := make(chan struct{})
-
-	defer func() {
-		if err := recover(); err != nil {
-			errorChan <- struct{}{}
-		}
-	}()
-
-	go func() {
-		var res string
-		var errC = make(chan error, 1)
-		select {
-		case errC <- yc.Call("ms.Ping", "ping", &res):
-			err := <-errC
-			if err != nil {
-				select {
-				case errorChan <- struct{}{}:
-				default:
-				}
-			} else if string(res) != "pong" {
-				select {
-				case errorChan <- struct{}{}:
-				default:
-				}
-			} else {
-				select {
-				case successChan <- struct{}{}:
-				default:
-				}
-			}
-		case <-ctx.Done():
-			select {
-			case errorChan <- struct{}{}:
-			default:
-			}
-		}
-		//if err := yc.Call("ms.Ping", "ping", &res); err != nil {
-		//	select {
-		//	case errorChan <- struct{}{}:
-		//	default:
-		//	}
-		//} else if string(res) != "pong" {
-		//	select {
-		//	case errorChan <- struct{}{}:
-		//	default:
-		//	}
-		//
-		//} else {
-		//	select {
-		//	case successChan <- struct{}{}:
-		//	default:
-		//	}
-		//}
-	}()
-
+	call := yc.Go("ms.Ping", "ping", new(string), make(chan *rpc.Call, 1))
 	select {
+	case <-call.Done:
+		if call.Error != nil {
+			return false
+		} else {
+			res := call.Reply.(*string)
+			if *res != "pong" {
+				return false
+			} else {
+				return true
+			}
+		}
 	case <-ctx.Done():
 		return false
-	case <-errorChan:
-		return false
-	case <-successChan:
-		return true
 	}
 }
 
@@ -307,8 +180,8 @@ func (yc *YTHostClient) Close() error {
 }
 
 func (yc *YTHostClient) IsClosed() bool {
-	//yc.Lock()
-	//defer yc.Unlock()
+	yc.Lock()
+	defer yc.Unlock()
 	return yc.isClosed
 }
 

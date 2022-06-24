@@ -142,10 +142,6 @@ func (h host) ClientStore() *clientStore.ClientStore {
 	panic("implement me")
 }
 
-func (h host) SendMsgBlock(pid peer.ID, mid int32, msg []byte) ([]byte, error) {
-	panic("implement me")
-}
-
 func (h host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error) {
 	panic("implement me")
 }

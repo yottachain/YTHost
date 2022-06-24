@@ -1,13 +1,14 @@
 package newHost
 
 import (
+	"sync"
+
 	"github.com/multiformats/go-multiaddr"
 	host "github.com/yottachain/YTHost"
 	"github.com/yottachain/YTHost/httpHost"
-	"github.com/yottachain/YTHost/interface"
+	YTinterface "github.com/yottachain/YTHost/interface"
 	"github.com/yottachain/YTHost/option"
 	"github.com/yottachain/YTHost/service"
-	"sync"
 )
 
 type HostPool struct {
@@ -32,7 +33,7 @@ func (hp *HostPool) RegisterGlobalMsgHandler(handlerFunc service.Handler) error 
 	return nil
 }
 
-func (hp *HostPool) Accept()  {
+func (hp *HostPool) Accept() {
 	for _, v := range hp.Hosts {
 		go v.Accept()
 	}
