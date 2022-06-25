@@ -129,6 +129,7 @@ func (cs *ClientStore) PongDetect() {
 			return true
 		}
 		if !c.IsUsed() {
+			logrus.Debugf("[ClientStore]Need to PongDetect: %s\n", k.(peer.ID))
 			needping[c] = true
 		}
 		return true
@@ -154,16 +155,16 @@ func (cs *ClientStore) PongDetect() {
 				c := waitpong[call]
 				if call.Error != nil {
 					if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
-						logrus.Infof("[ClientStore]Heartbeat ping fail,con closed,pid=%s\n", i+1, c.LocalPeer().ID)
+						logrus.Infof("[ClientStore]Heartbeat ping fail:%s,pid=%s\n", call.Error, c.RemotePeer().ID)
 						delete(needping, c)
 						c.Close()
 					} else {
-						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid=%s\n", i+1, c.LocalPeer().ID)
+						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid=%s\n", i+1, c.RemotePeer().ID)
 					}
 				} else {
 					res := call.Reply.(*string)
 					if *res != "pong" {
-						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid=%s\n", i+1, c.LocalPeer().ID)
+						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid=%s\n", i+1, c.RemotePeer().ID)
 					} else {
 						delete(needping, c)
 					}
@@ -175,7 +176,7 @@ func (cs *ClientStore) PongDetect() {
 		cancel()
 	}
 	for c, _ := range needping {
-		logrus.Infof("[ClientStore]Heartbeat ping fail,close it,pid=%s\n", c.LocalPeer().ID)
+		logrus.Infof("[ClientStore]Heartbeat ping fail,close it,pid=%s\n", c.RemotePeer().ID)
 		c.Close()
 	}
 }

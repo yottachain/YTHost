@@ -153,7 +153,7 @@ func (yc *YTHostClient) Close() error {
 		return nil
 	}
 	yc.isClosed = true
-	yc.ConnMap.Delete(yc.localPeerID)
+	yc.ConnMap.Delete(yc.RemotePeer().ID)
 	yc.Cs.CccSub()
 	return yc.Client.Close()
 }
