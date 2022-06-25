@@ -49,12 +49,7 @@ func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	if _c, ok := cs.Map.Load(pid); ok {
 		return _c.(*client.YTHostClient), nil
 	}
-	select {
-	case <-ctx.Done():
-		return nil, fmt.Errorf("ctx done")
-	default:
-		return cs.get(ctx, pid, mas)
-	}
+	return cs.get(ctx, pid, mas)
 }
 
 func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
@@ -70,12 +65,17 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	defer idLock.Unlock()
 	_c, ok := cs.Map.Load(pid)
 	if !ok {
-		if clt, err := cs.connect(ctx, pid, mas); err != nil {
-			return nil, err
-		} else {
-			clt.ConnMap = cs.Map
-			cs.Map.Store(pid, clt)
-			return clt, nil
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("ctx done")
+		default:
+			if clt, err := cs.connect(ctx, pid, mas); err != nil {
+				return nil, err
+			} else {
+				clt.ConnMap = cs.Map
+				cs.Map.Store(pid, clt)
+				return clt, nil
+			}
 		}
 	} else {
 		return _c.(*client.YTHostClient), nil
