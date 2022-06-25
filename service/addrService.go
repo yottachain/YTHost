@@ -12,9 +12,9 @@ type AddrService struct {
 }
 
 type PeerInfo struct {
-	ID     peer.ID
-	Addrs  []string
-	PubKey []byte
+	ID      peer.ID
+	Addrs   []string
+	PubKey  []byte
 	Version int32
 }
 
@@ -25,7 +25,6 @@ func (as *AddrService) RemotePeerInfo(req string, res *PeerInfo) error {
 		return err
 	}
 	res.PubKey = pk
-	//res.Addrs = as.Info.Addrs
 	for _, addr := range as.Info.Addrs {
 		res.Addrs = append(res.Addrs, addr.String())
 	}

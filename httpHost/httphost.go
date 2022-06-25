@@ -30,14 +30,12 @@ type host struct {
 	cfg       *config.Config
 	listenner manet.Listener
 	client    *http.Client
-	//transport *Transport
 	sync.Map
 	Cs *stat.ConnStat
 }
 
 func (h *host) Accept() {
 	hlis := manet.NetListener(h.listenner)
-
 	http.Serve(hlis, nil)
 }
 
@@ -46,19 +44,15 @@ func (h *host) Addrs() []multiaddr.Multiaddr {
 	if err != nil {
 		return nil
 	}
-
 	tcpMa, err := multiaddr.NewMultiaddr(fmt.Sprintf("/tcp/%s", port))
-
 	if err != nil {
 		return nil
 	}
-
 	var res []multiaddr.Multiaddr
 	maddrs, err := manet.InterfaceMultiaddrs()
 	if err != nil {
 		return nil
 	}
-
 	for _, ma := range maddrs {
 		newMa := ma.Encapsulate(tcpMa)
 		if manet.IsIPLoopback(newMa) {
@@ -93,7 +87,6 @@ func (h *host) RegisterHandler(id int32, handlerFunc service.Handler) error {
 
 func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int32) {
 	http.HandleFunc(p, func(writer http.ResponseWriter, request *http.Request) {
-
 		reqData, err := ioutil.ReadAll(request.Body)
 		if err != nil {
 			writer.WriteHeader(500)
@@ -101,7 +94,6 @@ func (h *host) registerHttpHandler(p string, handlerFunc service.Handler, id int
 			_, _ = writer.Write([]byte{})
 			return
 		}
-
 		pk, err := h.cfg.Privkey.GetPublic().Raw()
 		if err != nil {
 			writer.WriteHeader(500)
@@ -171,52 +163,32 @@ func (h *host) SendHTTPMsg(id peer.ID, ma multiaddr.Multiaddr, mid int32, msg []
 	if err != nil {
 		return nil, err
 	}
-
 	resp, err := h.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-
 	defer resp.Body.Close()
 	respData, err := ioutil.ReadAll(resp.Body)
-
 	return respData, err
 }
 
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
 	hst.cfg = config.NewConfig()
-
 	for _, bindOp := range options {
 		bindOp(hst.cfg)
 	}
-
-	// 开启pprof
-	if hst.cfg.PProf != "" {
-		go func() {
-			if err := http.ListenAndServe(hst.cfg.PProf, nil); err != nil {
-				fmt.Println("PProf open fail:", err)
-			} else {
-				fmt.Println("PProf debug open:", hst.cfg.PProf)
-			}
-		}()
-	}
-
 	lis, err := manet.Listen(hst.cfg.ListenAddr)
 	if err != nil {
 		return nil, err
 	}
 
 	hst.listenner = lis
-
 	tr := &http.Transport{
 		MaxIdleConns:    5,
 		IdleConnTimeout: 2 * time.Second,
 	}
-
 	hst.client = &http.Client{Transport: tr}
 	hst.client.Timeout = time.Second * 30
-	//hst.client.Transport = hst.transport
-
 	return hst, nil
 }

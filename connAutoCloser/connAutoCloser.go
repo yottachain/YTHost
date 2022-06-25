@@ -23,6 +23,10 @@ func New(conn net.Conn) *ConnAutoCloser {
 	return &ConnAutoCloser{conn, time.Minute, t, make(chan struct{}, 1)}
 }
 
+func (conn *ConnAutoCloser) Stop() {
+	conn.timer.Reset(0)
+}
+
 func (conn *ConnAutoCloser) Read(buf []byte) (int, error) {
 	n, err := conn.Conn.Read(buf)
 	if err != nil {

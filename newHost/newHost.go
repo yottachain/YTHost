@@ -1,8 +1,6 @@
 package newHost
 
 import (
-	"sync"
-
 	"github.com/multiformats/go-multiaddr"
 	host "github.com/yottachain/YTHost"
 	"github.com/yottachain/YTHost/httpHost"
@@ -12,8 +10,7 @@ import (
 )
 
 type HostPool struct {
-	Hosts    []YTinterface.Host
-	addrbook sync.Map
+	Hosts []YTinterface.Host
 }
 
 func (hp *HostPool) RegisterHandler(id int32, handlerFunc service.Handler) error {
@@ -40,9 +37,7 @@ func (hp *HostPool) Accept() {
 }
 
 func NewHost(mas []multiaddr.Multiaddr, opts ...option.Option) *HostPool {
-
 	var hp HostPool
-
 	var res []YTinterface.Host
 	for _, ma := range mas {
 		opts = append(opts, option.ListenAddr(ma))
@@ -61,6 +56,5 @@ func NewHost(mas []multiaddr.Multiaddr, opts ...option.Option) *HostPool {
 			}
 		}
 	}
-
 	return &hp
 }

@@ -31,6 +31,5 @@ func newConfig(cfg *Config) *Config {
 	cfg.Privkey = pi
 	cfg.Debug = false
 	cfg.PProf = ""
-
 	return cfg
 }
