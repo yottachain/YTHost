@@ -38,15 +38,12 @@ func (clt *Client) SendHTTPMsg(id peer.ID, ma multiaddr.Multiaddr, mid int32, ms
 	if err != nil {
 		return nil, err
 	}
-
 	resp, err := clt.Do(req)
 	if err != nil {
 		return nil, err
 	}
-
 	defer resp.Body.Close()
 	respData, err := ioutil.ReadAll(resp.Body)
-
 	return respData, err
 }
 

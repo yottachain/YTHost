@@ -40,7 +40,6 @@ type host struct {
 func NewHost(options ...option.Option) (*host, error) {
 	hst := new(host)
 	hst.cfg = config.NewConfig()
-
 	for _, bindOp := range options {
 		bindOp(hst.cfg)
 	}
@@ -48,16 +47,12 @@ func NewHost(options ...option.Option) (*host, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	hst.listener = ls
 	srv := rpc.NewServer()
 	hst.srv = srv
-
 	hst.HandlerMap = make(service.HandlerMap)
-
 	hst.Cs = stat.NewCs()
 	hst.clientStore = clientStore.NewClientStore(hst.Connect)
-
 	hst.httpClient = &http.Client{}
 	return hst, nil
 }
@@ -79,7 +74,6 @@ func (hst *host) Accept() {
 	if err := hst.srv.RegisterName("ms", msgService); err != nil {
 		logrus.Panicf("[Host]%s\n", err)
 	}
-
 	lis := mnet.NetListener(hst.listener)
 	for {
 		conn, err := lis.Accept()
@@ -215,7 +209,7 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 				}
 			} else {
 				if atomic.LoadInt32(&isOK) == 0 {
-					resChan <- err.Error()
+					resChan <- err
 				}
 			}
 		}(addr)
