@@ -119,10 +119,12 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 
 func (cs *ClientStore) PongDetect() {
 	needping := make(map[*client.YTHostClient]bool)
+	count := 0
 	f := func(k, v interface{}) bool {
+		count++
 		c := v.(*client.YTHostClient)
 		if c.IsconnTimeOut() && !c.IsUsed() {
-			logrus.Infof("[ClientStore]No message sent in INTERVAL pid=%s\n", peer.Encode(k.(peer.ID)))
+			logrus.Infof("[ClientStore]No message sent in INTERVAL pid=%s\n", k.(peer.ID))
 			c.Close()
 			return true
 		}
@@ -132,7 +134,7 @@ func (cs *ClientStore) PongDetect() {
 		return true
 	}
 	cs.Map.Range(f)
-
+	logrus.Infof("[ClientStore]Current connections: %d\n", count)
 	for i := 0; i < 3; i++ {
 		size := len(needping)
 		if size == 0 {
@@ -152,13 +154,16 @@ func (cs *ClientStore) PongDetect() {
 				c := waitpong[call]
 				if call.Error != nil {
 					if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
+						logrus.Infof("[ClientStore]Heartbeat ping fail,con closed,pid=%s\n", i+1, c.LocalPeer().ID)
+						delete(needping, c)
 						c.Close()
+					} else {
+						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid=%s\n", i+1, c.LocalPeer().ID)
 					}
-					logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(c.LocalPeer().ID))
 				} else {
 					res := call.Reply.(*string)
 					if *res != "pong" {
-						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid=%s\n", i+1, peer.Encode(c.LocalPeer().ID))
+						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid=%s\n", i+1, c.LocalPeer().ID)
 					} else {
 						delete(needping, c)
 					}
@@ -170,6 +175,7 @@ func (cs *ClientStore) PongDetect() {
 		cancel()
 	}
 	for c, _ := range needping {
+		logrus.Infof("[ClientStore]Heartbeat ping fail,close it,pid=%s\n", c.LocalPeer().ID)
 		c.Close()
 	}
 }
