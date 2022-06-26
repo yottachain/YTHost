@@ -25,7 +25,7 @@ type Host interface {
 	RemoveGlobalHandler()
 	ConnectAddrStrings(ctx context.Context, id string, addrs []string) (*client.YTHostClient, error)
 	ClientStore() *clientStore.ClientStore
-	AsyncSendMsg(pid peer.ID, mid int32, msg []byte) (*rpc.Call, error)
+	AsyncSendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) (*rpc.Call, error)
 	SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) ([]byte, error)
 	SendMsgAuto(ctx context.Context, pid peer.ID, mid int32, ma multiaddr.Multiaddr, msg []byte) ([]byte, error)
 	ConnStat() *stat.ConnStat

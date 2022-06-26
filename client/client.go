@@ -46,6 +46,14 @@ func init() {
 	}
 }
 
+type Message struct {
+	serviceMethod string
+	args          interface{}
+	reply         interface{}
+	done          chan *rpc.Call
+	result        chan *rpc.Call
+}
+
 type YTHostClient struct {
 	*rpc.Client
 	localPeerID     peer.ID
@@ -61,6 +69,7 @@ type YTHostClient struct {
 
 	ConnMap sync.Map
 	sync.Mutex
+	waitWrite chan *Message
 }
 
 func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat) (*YTHostClient, error) {
@@ -76,12 +85,25 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, c
 	if err := yc.Call("as.RemotePeerInfo", "", yc.RPI); err != nil {
 		return nil, err
 	}
-
 	yc.isClosed = false
 	yc.lastSendTime.Store(time.Now().Unix())
-
 	yc.Cs = cs
+	yc.waitWrite = make(chan *Message, 1)
+	go yc.WriteRequest()
 	return yc, nil
+}
+
+func (yc *YTHostClient) WriteRequest() {
+	for {
+		req, ok := <-yc.waitWrite
+		if !ok {
+			return
+		}
+		req.result <- yc.Go(req.serviceMethod, req.args, req.reply, req.done)
+		if req.serviceMethod == "ms.HandleMsg" {
+			yc.lastSendTime.Store(time.Now().Unix())
+		}
+	}
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
@@ -113,20 +135,11 @@ func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
 	return pi
 }
 
-func (yc *YTHostClient) AsyncSendMsg(id int32, data []byte) *rpc.Call {
-	yc.lastSendTime.Store(time.Now().Unix())
-	req := service.Request{MsgId: id,
-		ReqData: data,
-		RemotePeerInfo: service.PeerInfo{ID: yc.localPeerID,
-			Addrs:   yc.localPeerAddrs,
-			PubKey:  yc.localPeerPubKey,
-			Version: yc.Version},
+func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
+	call, err := yc.AsyncSendMsg(ctx, id, data)
+	if err != nil {
+		return nil, err
 	}
-	return yc.Go("ms.HandleMsg", req, new(service.Response), make(chan *rpc.Call, 1))
-}
-
-func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) (result []byte, e error) {
-	call := yc.AsyncSendMsg(id, data)
 	select {
 	case <-call.Done:
 		if call.Error != nil {
@@ -142,8 +155,44 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) (res
 	}
 }
 
-func (yc *YTHostClient) SendPing(done chan *rpc.Call) *rpc.Call {
-	return yc.Go("ms.Ping", "ping", new(string), done)
+func (yc *YTHostClient) AsyncSendMsg(ctx context.Context, id int32, data []byte) (*rpc.Call, error) {
+	req := service.Request{MsgId: id,
+		ReqData: data,
+		RemotePeerInfo: service.PeerInfo{ID: yc.localPeerID,
+			Addrs:   yc.localPeerAddrs,
+			PubKey:  yc.localPeerPubKey,
+			Version: yc.Version},
+	}
+	msg := &Message{serviceMethod: "ms.HandleMsg",
+		args:  req,
+		reply: new(service.Response),
+		done:  make(chan *rpc.Call, 1),
+	}
+	return yc.writeMessage(ctx, msg)
+}
+
+func (yc *YTHostClient) writeMessage(ctx context.Context, msg *Message) (*rpc.Call, error) {
+	msg.result = make(chan *rpc.Call, 1)
+	select {
+	case yc.waitWrite <- msg:
+		select {
+		case call := <-msg.result:
+			return call, nil
+		case <-ctx.Done():
+			return nil, fmt.Errorf("ctx time out")
+		}
+	case <-ctx.Done():
+		return nil, fmt.Errorf("ctx time out")
+	}
+}
+
+func (yc *YTHostClient) SendPing(ctx context.Context, done chan *rpc.Call) (*rpc.Call, error) {
+	msg := &Message{serviceMethod: "ms.Ping",
+		args:  "ping",
+		reply: new(string),
+		done:  done,
+	}
+	return yc.writeMessage(ctx, msg)
 }
 
 func (yc *YTHostClient) Close() error {
@@ -155,6 +204,7 @@ func (yc *YTHostClient) Close() error {
 	yc.isClosed = true
 	yc.ConnMap.Delete(yc.RemotePeer().ID)
 	yc.Cs.CccSub()
+	close(yc.waitWrite)
 	return yc.Client.Close()
 }
 

@@ -143,8 +143,16 @@ func (cs *ClientStore) PongDetect() {
 		waitpong := make(map[*rpc.Call]*client.YTHostClient)
 		done := make(chan *rpc.Call, size)
 		for c := range needping {
-			call := c.SendPing(done)
-			waitpong[call] = c
+			sendctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			call, err := c.SendPing(sendctx, done)
+			if err == nil {
+				waitpong[call] = c
+			}
+			cancel()
+		}
+		size = len(waitpong)
+		if size == 0 {
+			continue
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	Loop:
