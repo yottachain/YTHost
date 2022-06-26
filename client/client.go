@@ -14,6 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/sirupsen/logrus"
 	"github.com/yottachain/YTHost/service"
 	"github.com/yottachain/YTHost/stat"
 )
@@ -51,7 +52,7 @@ type Message struct {
 	args          interface{}
 	reply         interface{}
 	done          chan *rpc.Call
-	result        chan *rpc.Call
+	Result        chan *rpc.Call
 }
 
 type YTHostClient struct {
@@ -103,7 +104,7 @@ func (yc *YTHostClient) WriteRequest() {
 			return
 		}
 		call := yc.Go(req.serviceMethod, req.args, req.reply, req.done)
-		req.result <- call
+		req.Result <- call
 		if req.serviceMethod == "ms.HandleMsg" && call.Error == nil {
 			yc.lastSendTime.Store(time.Now().Unix())
 		}
@@ -160,6 +161,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 }
 
 func (yc *YTHostClient) AsyncSendMsg(ctx context.Context, id int32, data []byte) (*rpc.Call, error) {
+	yc.lastSendTime.Store(time.Now().Unix())
 	req := service.Request{MsgId: id,
 		ReqData: data,
 		RemotePeerInfo: service.PeerInfo{ID: yc.localPeerID,
@@ -181,11 +183,11 @@ func (yc *YTHostClient) writeMessage(ctx context.Context, msg *Message) (c *rpc.
 			e = r.(error)
 		}
 	}()
-	msg.result = make(chan *rpc.Call, 1)
+	msg.Result = make(chan *rpc.Call, 1)
 	select {
 	case yc.waitWrite <- msg:
 		select {
-		case call := <-msg.result:
+		case call := <-msg.Result:
 			return call, nil
 		case <-ctx.Done():
 			return nil, fmt.Errorf("ctx time out:writing")
@@ -195,13 +197,24 @@ func (yc *YTHostClient) writeMessage(ctx context.Context, msg *Message) (c *rpc.
 	}
 }
 
-func (yc *YTHostClient) SendPing(ctx context.Context, done chan *rpc.Call) (*rpc.Call, error) {
+func (yc *YTHostClient) SendPing() (m *Message, e error) {
+	defer func() {
+		if r := recover(); r != nil {
+			e = r.(error)
+		}
+	}()
 	msg := &Message{serviceMethod: "ms.Ping",
-		args:  "ping",
-		reply: new(string),
-		done:  done,
+		args:   "ping",
+		reply:  new(string),
+		done:   make(chan *rpc.Call, 1),
+		Result: make(chan *rpc.Call, 1),
 	}
-	return yc.writeMessage(ctx, msg)
+	select {
+	case yc.waitWrite <- msg:
+		return msg, nil
+	default:
+		return nil, fmt.Errorf("is used")
+	}
 }
 
 func (yc *YTHostClient) Close() (err error) {
@@ -215,6 +228,7 @@ func (yc *YTHostClient) Close() (err error) {
 	yc.Cs.CccSub()
 	err = yc.Client.Close()
 	close(yc.waitWrite)
+	logrus.Infof("[HostClient]Peer closed,pid:%s\n", yc.RemotePeer().ID)
 	return
 }
 

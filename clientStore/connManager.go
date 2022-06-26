@@ -128,7 +128,6 @@ func (cs *ClientStore) PongDetect() {
 			return true
 		}
 		if !c.IsUsed() {
-			logrus.Tracef("[ClientStore]Need to PongDetect:%s\n", k.(peer.ID))
 			needping[c] = true
 		}
 		return true
@@ -140,49 +139,64 @@ func (cs *ClientStore) PongDetect() {
 		if size == 0 {
 			break
 		}
-		waitpong := make(map[*rpc.Call]*client.YTHostClient)
-		done := make(chan *rpc.Call, size)
+		waitpong := make(map[*client.Message]*client.YTHostClient)
 		for c := range needping {
 			if c.IsUsed() {
 				continue
 			}
-			sendctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			call, err := c.SendPing(sendctx, done)
+			m, err := c.SendPing()
 			if err == nil {
-				logrus.Tracef("[ClientStore]Send ping %d times.... pid:%s\n", i+1, c.RemotePeer().ID)
-				waitpong[call] = c
-			} else {
-				logrus.Tracef("[ClientStore]Send ping %d times fail pid:%s\n", i+1, c.RemotePeer().ID)
+				waitpong[m] = c
 			}
-			cancel()
 		}
-		size = len(waitpong)
-		if size == 0 {
+		if len(waitpong) == 0 {
 			continue
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	Loop:
-		for ii := 0; ii < size; ii++ {
-			select {
-			case call := <-done:
-				c := waitpong[call]
-				if call.Error != nil {
-					if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
-						delete(needping, c)
-						c.Close()
+		timeout := false
+		for msg, c := range waitpong {
+			if !timeout {
+				select {
+				case callres := <-msg.Result:
+					select {
+					case call := <-callres.Done:
+						if call.Error != nil {
+							if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
+								delete(needping, c)
+								c.Close()
+							}
+						} else {
+							res := call.Reply.(*string)
+							if *res == "pong" {
+								delete(needping, c)
+							}
+						}
+					case <-ctx.Done():
+						timeout = true
 					}
-					logrus.Infof("[ClientStore]Heartbeat ping fail:%s,pid:%s\n", call.Error, c.RemotePeer().ID)
-				} else {
-					res := call.Reply.(*string)
-					if *res != "pong" {
-						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid:%s\n", i+1, c.RemotePeer().ID)
-					} else {
-						delete(needping, c)
-					}
+				case <-ctx.Done():
+					timeout = true
 				}
-			case <-ctx.Done():
-				logrus.Traceln("[ClientStore]Heartbeat ping timeout")
-				break Loop
+			} else {
+				select {
+				case callres := <-msg.Result:
+					select {
+					case call := <-callres.Done:
+						if call.Error != nil {
+							if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
+								delete(needping, c)
+								c.Close()
+							}
+						} else {
+							res := call.Reply.(*string)
+							if *res == "pong" {
+								delete(needping, c)
+							}
+						}
+					default:
+					}
+				default:
+				}
 			}
 		}
 		cancel()
@@ -191,7 +205,6 @@ func (cs *ClientStore) PongDetect() {
 		if c.IsUsed() {
 			continue
 		}
-		logrus.Infof("[ClientStore]Heartbeat ping fail,close it,pid:%s\n", c.RemotePeer().ID)
 		c.Close()
 	}
 }
