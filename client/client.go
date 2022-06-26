@@ -102,8 +102,9 @@ func (yc *YTHostClient) WriteRequest() {
 		if yc.isClosed {
 			return
 		}
-		req.result <- yc.Go(req.serviceMethod, req.args, req.reply, req.done)
-		if req.serviceMethod == "ms.HandleMsg" {
+		call := yc.Go(req.serviceMethod, req.args, req.reply, req.done)
+		req.result <- call
+		if req.serviceMethod == "ms.HandleMsg" && call.Error == nil {
 			yc.lastSendTime.Store(time.Now().Unix())
 		}
 	}
@@ -203,7 +204,7 @@ func (yc *YTHostClient) SendPing(ctx context.Context, done chan *rpc.Call) (*rpc
 	return yc.writeMessage(ctx, msg)
 }
 
-func (yc *YTHostClient) Close() error {
+func (yc *YTHostClient) Close() (err error) {
 	yc.Lock()
 	defer yc.Unlock()
 	if yc.isClosed {
@@ -212,8 +213,9 @@ func (yc *YTHostClient) Close() error {
 	yc.isClosed = true
 	yc.ConnMap.Delete(yc.RemotePeer().ID)
 	yc.Cs.CccSub()
+	err = yc.Client.Close()
 	close(yc.waitWrite)
-	return yc.Client.Close()
+	return
 }
 
 func (yc *YTHostClient) IsClosed() bool {

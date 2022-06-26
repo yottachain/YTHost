@@ -143,10 +143,16 @@ func (cs *ClientStore) PongDetect() {
 		waitpong := make(map[*rpc.Call]*client.YTHostClient)
 		done := make(chan *rpc.Call, size)
 		for c := range needping {
-			sendctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			if c.IsUsed() {
+				continue
+			}
+			sendctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			call, err := c.SendPing(sendctx, done)
 			if err == nil {
+				logrus.Tracef("[ClientStore]Send ping %d times.... pid:%s\n", i+1, c.RemotePeer().ID)
 				waitpong[call] = c
+			} else {
+				logrus.Tracef("[ClientStore]Send ping %d times fail pid:%s\n", i+1, c.RemotePeer().ID)
 			}
 			cancel()
 		}
@@ -175,13 +181,16 @@ func (cs *ClientStore) PongDetect() {
 					}
 				}
 			case <-ctx.Done():
-				logrus.Infoln("[ClientStore]Heartbeat ping timeout")
+				logrus.Traceln("[ClientStore]Heartbeat ping timeout")
 				break Loop
 			}
 		}
 		cancel()
 	}
 	for c := range needping {
+		if c.IsUsed() {
+			continue
+		}
 		logrus.Infof("[ClientStore]Heartbeat ping fail,close it,pid:%s\n", c.RemotePeer().ID)
 		c.Close()
 	}
