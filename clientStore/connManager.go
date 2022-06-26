@@ -19,7 +19,7 @@ type ClientStore struct {
 	connect func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)
 	sync.Map
 	sync.Mutex
-	IdLockMap map[peer.ID]*sync.Mutex
+	IdLockMap map[peer.ID]chan int
 }
 
 func (cs *ClientStore) GetUsePid(pid peer.ID) *client.YTHostClient {
@@ -56,19 +56,16 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	cs.Lock() //len(IdLockMap)需要控制，定期清理
 	idLock, ok := cs.IdLockMap[pid]
 	if !ok {
-		idLock = &sync.Mutex{}
+		idLock = make(chan int, 1)
 		cs.IdLockMap[pid] = idLock
 	}
 	cs.Unlock()
 
-	idLock.Lock()
-	defer idLock.Unlock()
-	_c, ok := cs.Map.Load(pid)
-	if !ok {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx done")
-		default:
+	select {
+	case idLock <- 1:
+		defer func() { <-idLock }()
+		_c, ok := cs.Map.Load(pid)
+		if !ok {
 			if clt, err := cs.connect(ctx, pid, mas); err != nil {
 				return nil, err
 			} else {
@@ -76,9 +73,11 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 				cs.Map.Store(pid, clt)
 				return clt, nil
 			}
+		} else {
+			return _c.(*client.YTHostClient), nil
 		}
-	} else {
-		return _c.(*client.YTHostClient), nil
+	case <-ctx.Done():
+		return nil, fmt.Errorf("ctx done")
 	}
 }
 
@@ -124,18 +123,18 @@ func (cs *ClientStore) PongDetect() {
 		count++
 		c := v.(*client.YTHostClient)
 		if c.IsconnTimeOut() && !c.IsUsed() {
-			logrus.Infof("[ClientStore]No message sent in INTERVAL pid=%s\n", k.(peer.ID))
+			logrus.Infof("[ClientStore]No message sent in INTERVAL pid:%s\n", k.(peer.ID))
 			c.Close()
 			return true
 		}
 		if !c.IsUsed() {
-			logrus.Debugf("[ClientStore]Need to PongDetect: %s\n", k.(peer.ID))
+			logrus.Tracef("[ClientStore]Need to PongDetect:%s\n", k.(peer.ID))
 			needping[c] = true
 		}
 		return true
 	}
 	cs.Map.Range(f)
-	logrus.Infof("[ClientStore]Current connections: %d\n", count)
+	logrus.Debugf("[ClientStore]Current connections: %d\n", count)
 	for i := 0; i < 3; i++ {
 		size := len(needping)
 		if size == 0 {
@@ -143,7 +142,7 @@ func (cs *ClientStore) PongDetect() {
 		}
 		waitpong := make(map[*rpc.Call]*client.YTHostClient)
 		done := make(chan *rpc.Call, size)
-		for c, _ := range needping {
+		for c := range needping {
 			call := c.SendPing(done)
 			waitpong[call] = c
 		}
@@ -155,28 +154,27 @@ func (cs *ClientStore) PongDetect() {
 				c := waitpong[call]
 				if call.Error != nil {
 					if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
-						logrus.Infof("[ClientStore]Heartbeat ping fail:%s,pid=%s\n", call.Error, c.RemotePeer().ID)
 						delete(needping, c)
 						c.Close()
-					} else {
-						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid=%s\n", i+1, c.RemotePeer().ID)
 					}
+					logrus.Infof("[ClientStore]Heartbeat ping fail:%s,pid:%s\n", call.Error, c.RemotePeer().ID)
 				} else {
 					res := call.Reply.(*string)
 					if *res != "pong" {
-						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid=%s\n", i+1, c.RemotePeer().ID)
+						logrus.Infof("[ClientStore]Heartbeat ping %d times fail pid:%s\n", i+1, c.RemotePeer().ID)
 					} else {
 						delete(needping, c)
 					}
 				}
 			case <-ctx.Done():
+				logrus.Infoln("[ClientStore]Heartbeat ping timeout")
 				break Loop
 			}
 		}
 		cancel()
 	}
-	for c, _ := range needping {
-		logrus.Infof("[ClientStore]Heartbeat ping fail,close it,pid=%s\n", c.RemotePeer().ID)
+	for c := range needping {
+		logrus.Infof("[ClientStore]Heartbeat ping fail,close it,pid:%s\n", c.RemotePeer().ID)
 		c.Close()
 	}
 }
@@ -186,7 +184,7 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		connFunc,
 		sync.Map{},
 		sync.Mutex{},
-		make(map[peer.ID]*sync.Mutex),
+		make(map[peer.ID]chan int),
 	}
 	go func() {
 		for {
