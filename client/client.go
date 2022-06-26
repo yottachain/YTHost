@@ -99,6 +99,9 @@ func (yc *YTHostClient) WriteRequest() {
 		if !ok {
 			return
 		}
+		if yc.isClosed {
+			return
+		}
 		req.result <- yc.Go(req.serviceMethod, req.args, req.reply, req.done)
 		if req.serviceMethod == "ms.HandleMsg" {
 			yc.lastSendTime.Store(time.Now().Unix())
@@ -151,7 +154,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 			return call.Reply.(*service.Response).Data, nil
 		}
 	case <-ctx.Done():
-		return nil, fmt.Errorf("ctx time out")
+		return nil, fmt.Errorf("ctx time out:waiting for response")
 	}
 }
 
@@ -179,10 +182,10 @@ func (yc *YTHostClient) writeMessage(ctx context.Context, msg *Message) (*rpc.Ca
 		case call := <-msg.result:
 			return call, nil
 		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx time out")
+			return nil, fmt.Errorf("ctx time out:writing")
 		}
 	case <-ctx.Done():
-		return nil, fmt.Errorf("ctx time out")
+		return nil, fmt.Errorf("ctx time out:waiting to write")
 	}
 }
 

@@ -219,7 +219,7 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		select {
 		case <-ctx.Done():
 			atomic.AddInt32(&isOK, 1)
-			return nil, fmt.Errorf("conn ctx quit")
+			return nil, fmt.Errorf("ctx time out:connecting")
 		case res := <-resChan:
 			if conn, ok := res.(mnet.Conn); ok {
 				return conn, nil

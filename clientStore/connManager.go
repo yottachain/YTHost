@@ -77,7 +77,7 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 			return _c.(*client.YTHostClient), nil
 		}
 	case <-ctx.Done():
-		return nil, fmt.Errorf("ctx done")
+		return nil, fmt.Errorf("ctx time out:waiting to connect")
 	}
 }
 
