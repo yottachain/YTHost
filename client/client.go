@@ -174,7 +174,12 @@ func (yc *YTHostClient) AsyncSendMsg(ctx context.Context, id int32, data []byte)
 	return yc.writeMessage(ctx, msg)
 }
 
-func (yc *YTHostClient) writeMessage(ctx context.Context, msg *Message) (*rpc.Call, error) {
+func (yc *YTHostClient) writeMessage(ctx context.Context, msg *Message) (c *rpc.Call, e error) {
+	defer func() {
+		if r := recover(); r != nil {
+			e = r.(error)
+		}
+	}()
 	msg.result = make(chan *rpc.Call, 1)
 	select {
 	case yc.waitWrite <- msg:
