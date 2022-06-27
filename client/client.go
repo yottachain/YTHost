@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/rpc"
-	"os"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,95 +17,145 @@ import (
 	"github.com/yottachain/YTHost/stat"
 )
 
-var PSI int
-var PPI int
+var GlobalClientOption = &ClientOption{1, 5000, 2000, 3000, 10000, 60000 * 3, 30000}
 
-func init() {
-	ssi := os.Getenv("P2P_SEND_MAX_INTERVAL")
-	if ssi == "" {
-		PSI = 600000
-	} else {
-		si, err := strconv.Atoi(ssi)
-		if err != nil {
-			PSI = 600000
-		} else {
-			PSI = si
-		}
-	}
-	spi := os.Getenv("P2P_PING_INTERVAL")
-	if spi == "" {
-		PPI = 60000
-	} else {
-		pi, err := strconv.Atoi(spi)
-		if err != nil {
-			PPI = 60000
-		} else {
-			PPI = pi
-		}
+type ClientOption struct {
+	QueueSize      int
+	ConnectTimeout int
+	QueueTimeout   int
+	WriteTimeout   int
+	ReadTimeout    int
+
+	IdleTimeout  int
+	PingInterval int
+}
+
+type YTCall struct {
+	client    *YTHostClient
+	args      interface{}
+	reply     interface{}
+	writeDone chan *rpc.Call
+	cancel    int32
+	call      *rpc.Call
+}
+
+func (ytcall *YTCall) WriteDone(ctx context.Context) error {
+	select {
+	case ytcall.call = <-ytcall.writeDone:
+		return nil
+	case <-ctx.Done():
+		atomic.AddInt32(&ytcall.cancel, 1)
+		return fmt.Errorf("ctx time out:writing")
 	}
 }
 
-type Message struct {
-	serviceMethod string
-	args          interface{}
-	reply         interface{}
-	done          chan *rpc.Call
-	Result        chan *rpc.Call
+func (ytcall *YTCall) Done(ctx context.Context) ([]byte, error) {
+	if ytcall.call == nil {
+		return nil, fmt.Errorf("message not sent")
+	}
+	select {
+	case <-ytcall.call.Done:
+		if ytcall.call.Error != nil {
+			if ytcall.call.Error == rpc.ErrShutdown || ytcall.call.Error == io.ErrUnexpectedEOF {
+				ytcall.client.Close()
+			}
+			return nil, ytcall.call.Error
+		} else {
+			return ytcall.call.Reply.(*service.Response).Data, nil
+		}
+	case <-ctx.Done():
+		return nil, fmt.Errorf("ctx time out:waiting for response")
+	}
 }
 
 type YTHostClient struct {
 	*rpc.Client
+	sync.Mutex
+
 	localPeerID     peer.ID
 	localPeerAddrs  []string
 	localPeerPubKey []byte
 	Version         int32
+	RPI             *service.PeerInfo
 
-	RPI *service.PeerInfo
-	Cs  *stat.ConnStat
+	reqQueue chan *YTCall
+	isClosed bool
 
-	isClosed     bool
-	lastSendTime atomic.Value
-
+	Cs      *stat.ConnStat
 	ConnMap sync.Map
-	sync.Mutex
-	waitWrite chan *Message
 }
 
 func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat) (*YTHostClient, error) {
-	var yc = new(YTHostClient)
-	yc.Client = clt
-	yc.localPeerID = pi.ID
+	yc := &YTHostClient{
+		Client:      clt,
+		localPeerID: pi.ID,
+		Version:     v,
+		RPI:         new(service.PeerInfo),
+		isClosed:    false,
+		Cs:          cs,
+		reqQueue:    make(chan *YTCall, GlobalClientOption.QueueSize),
+	}
 	yc.localPeerPubKey, _ = pk.Raw()
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
 	}
-	yc.Version = v
-	yc.RPI = new(service.PeerInfo)
 	if err := yc.Call("as.RemotePeerInfo", "", yc.RPI); err != nil {
 		return nil, err
 	}
-	yc.isClosed = false
-	yc.lastSendTime.Store(time.Now().Unix())
-	yc.Cs = cs
-	yc.waitWrite = make(chan *Message, 1)
-	go yc.WriteRequest()
+	go yc.DoSend()
+	cs.CccAdd()
+	logrus.Debugf("[HostClient]Successfully connected to %s,current connections %d\n", yc.RemotePeer().ID, yc.Cs.CliConnCount)
 	return yc, nil
 }
 
-func (yc *YTHostClient) WriteRequest() {
+func (yc *YTHostClient) DoSend() {
+	pingerr := 0
+	lasttime := time.Now()
+	var pingcall *rpc.Call = nil
+	timer := time.NewTimer(time.Millisecond * time.Duration(GlobalClientOption.PingInterval))
 	for {
-		req, ok := <-yc.waitWrite
-		if !ok {
-			return
+		select {
+		case req := <-yc.reqQueue:
+			if atomic.LoadInt32(&req.cancel) > 0 {
+				break
+			}
+			if yc.isClosed {
+				return
+			}
+			req.writeDone <- yc.Go("ms.HandleMsg", req.args, req.reply, make(chan *rpc.Call, 1))
+			pingerr = 0
+			pingcall = nil
+			lasttime = time.Now()
+		case <-timer.C:
+			if yc.isClosed || time.Since(lasttime).Milliseconds() > int64(GlobalClientOption.IdleTimeout) {
+				yc.Close()
+				return
+			}
+			if pingcall == nil {
+				pingcall = yc.Go("ms.Ping", "ping", new(string), make(chan *rpc.Call, 1))
+			} else {
+				select {
+				case call := <-pingcall.Done:
+					if call.Error != nil {
+						if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
+							yc.Close()
+							return
+						}
+						pingerr++
+					} else {
+						pingerr = 0
+					}
+				default:
+					pingerr++
+				}
+				if pingerr >= 3 {
+					yc.Close()
+					return
+				}
+				pingcall = yc.Go("ms.Ping", "ping", new(string), make(chan *rpc.Call, 1))
+			}
 		}
-		if yc.isClosed {
-			return
-		}
-		call := yc.Go(req.serviceMethod, req.args, req.reply, req.done)
-		req.Result <- call
-		if req.serviceMethod == "ms.HandleMsg" && call.Error == nil {
-			yc.lastSendTime.Store(time.Now().Unix())
-		}
+		timer.Reset(time.Millisecond * time.Duration(GlobalClientOption.PingInterval))
 	}
 }
 
@@ -140,28 +188,7 @@ func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
 	return pi
 }
 
-func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
-	call, err := yc.AsyncSendMsg(ctx, id, data)
-	if err != nil {
-		return nil, err
-	}
-	select {
-	case <-call.Done:
-		if call.Error != nil {
-			if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
-				yc.Close()
-			}
-			return nil, call.Error
-		} else {
-			return call.Reply.(*service.Response).Data, nil
-		}
-	case <-ctx.Done():
-		return nil, fmt.Errorf("ctx time out:waiting for response")
-	}
-}
-
-func (yc *YTHostClient) AsyncSendMsg(ctx context.Context, id int32, data []byte) (*rpc.Call, error) {
-	yc.lastSendTime.Store(time.Now().Unix())
+func (yc *YTHostClient) PushMsg(ctx context.Context, id int32, data []byte) (*YTCall, error) {
 	req := service.Request{MsgId: id,
 		ReqData: data,
 		RemotePeerInfo: service.PeerInfo{ID: yc.localPeerID,
@@ -169,52 +196,34 @@ func (yc *YTHostClient) AsyncSendMsg(ctx context.Context, id int32, data []byte)
 			PubKey:  yc.localPeerPubKey,
 			Version: yc.Version},
 	}
-	msg := &Message{serviceMethod: "ms.HandleMsg",
-		args:  req,
-		reply: new(service.Response),
-		done:  make(chan *rpc.Call, 1),
+	msg := &YTCall{args: req,
+		reply:     new(service.Response),
+		writeDone: make(chan *rpc.Call, 1),
+		cancel:    0,
+		client:    yc,
 	}
-	return yc.writeMessage(ctx, msg)
-}
-
-func (yc *YTHostClient) writeMessage(ctx context.Context, msg *Message) (c *rpc.Call, e error) {
-	defer func() {
-		if r := recover(); r != nil {
-			e = r.(error)
-		}
-	}()
-	msg.Result = make(chan *rpc.Call, 1)
 	select {
-	case yc.waitWrite <- msg:
-		select {
-		case call := <-msg.Result:
-			return call, nil
-		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx time out:writing")
-		}
+	case yc.reqQueue <- msg:
+		return msg, nil
 	case <-ctx.Done():
 		return nil, fmt.Errorf("ctx time out:waiting to write")
 	}
 }
 
-func (yc *YTHostClient) SendPing() (m *Message, e error) {
-	defer func() {
-		if r := recover(); r != nil {
-			e = r.(error)
-		}
-	}()
-	msg := &Message{serviceMethod: "ms.Ping",
-		args:   "ping",
-		reply:  new(string),
-		done:   make(chan *rpc.Call, 1),
-		Result: make(chan *rpc.Call, 1),
+func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
+	ctx_push, cancel_push := context.WithTimeout(context.Background(), time.Duration(GlobalClientOption.QueueTimeout)*time.Millisecond)
+	defer cancel_push()
+	ytcall, err := yc.PushMsg(ctx_push, id, data)
+	if err != nil {
+		return nil, err
 	}
-	select {
-	case yc.waitWrite <- msg:
-		return msg, nil
-	default:
-		return nil, fmt.Errorf("is used")
+	ctx_write, cancel_write := context.WithTimeout(context.Background(), time.Duration(GlobalClientOption.WriteTimeout)*time.Millisecond)
+	defer cancel_write()
+	err = ytcall.WriteDone(ctx_write)
+	if err != nil {
+		return nil, err
 	}
+	return ytcall.Done(ctx)
 }
 
 func (yc *YTHostClient) Close() (err error) {
@@ -227,8 +236,7 @@ func (yc *YTHostClient) Close() (err error) {
 	yc.ConnMap.Delete(yc.RemotePeer().ID)
 	yc.Cs.CccSub()
 	err = yc.Client.Close()
-	close(yc.waitWrite)
-	logrus.Infof("[HostClient]Peer closed,pid:%s\n", yc.RemotePeer().ID)
+	logrus.Debugf("[HostClient]Disconnect %s,current connections %d\n", yc.RemotePeer().ID, yc.Cs.CliConnCount)
 	return
 }
 
@@ -241,14 +249,4 @@ func (yc *YTHostClient) IsClosed() bool {
 func (yc *YTHostClient) SendMsgClose(ctx context.Context, id int32, data []byte) ([]byte, error) {
 	defer yc.Close()
 	return yc.SendMsg(ctx, id, data)
-}
-
-func (yc *YTHostClient) IsconnTimeOut() bool {
-	t := yc.lastSendTime.Load().(int64)
-	return time.Since(time.Unix(t, 0)).Milliseconds() > int64(PSI)
-}
-
-func (yc *YTHostClient) IsUsed() bool {
-	t := yc.lastSendTime.Load().(int64)
-	return !(time.Since(time.Unix(t, 0)).Milliseconds() > int64(PPI))
 }

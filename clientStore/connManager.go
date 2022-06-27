@@ -3,15 +3,12 @@ package clientStore
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/rpc"
 	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/sirupsen/logrus"
 	"github.com/yottachain/YTHost/client"
 )
 
@@ -42,12 +39,12 @@ func (cs *ClientStore) BackConnect(pid peer.ID, addrs []string) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(10))
 	defer cancel()
-	_, _ = cs.Get(ctx, pid, mas)
+	cs.Get(ctx, pid, mas)
 }
 
 func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-	if _c, ok := cs.Map.Load(pid); ok {
-		return _c.(*client.YTHostClient), nil
+	if c, ok := cs.Map.Load(pid); ok {
+		return c.(*client.YTHostClient), nil
 	}
 	return cs.get(ctx, pid, mas)
 }
@@ -116,99 +113,6 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 	return nil, ok
 }
 
-func (cs *ClientStore) PongDetect() {
-	needping := make(map[*client.YTHostClient]bool)
-	count := 0
-	f := func(k, v interface{}) bool {
-		count++
-		c := v.(*client.YTHostClient)
-		if c.IsconnTimeOut() && !c.IsUsed() {
-			logrus.Infof("[ClientStore]No message sent in INTERVAL pid:%s\n", k.(peer.ID))
-			c.Close()
-			return true
-		}
-		if !c.IsUsed() {
-			needping[c] = true
-		}
-		return true
-	}
-	cs.Map.Range(f)
-	logrus.Debugf("[ClientStore]Current connections: %d\n", count)
-	for i := 0; i < 3; i++ {
-		size := len(needping)
-		if size == 0 {
-			break
-		}
-		waitpong := make(map[*client.Message]*client.YTHostClient)
-		for c := range needping {
-			if c.IsUsed() {
-				continue
-			}
-			m, err := c.SendPing()
-			if err == nil {
-				waitpong[m] = c
-			}
-		}
-		if len(waitpong) == 0 {
-			continue
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		timeout := false
-		for msg, c := range waitpong {
-			if !timeout {
-				select {
-				case callres := <-msg.Result:
-					select {
-					case call := <-callres.Done:
-						if call.Error != nil {
-							if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
-								delete(needping, c)
-								c.Close()
-							}
-						} else {
-							res := call.Reply.(*string)
-							if *res == "pong" {
-								delete(needping, c)
-							}
-						}
-					case <-ctx.Done():
-						timeout = true
-					}
-				case <-ctx.Done():
-					timeout = true
-				}
-			} else {
-				select {
-				case callres := <-msg.Result:
-					select {
-					case call := <-callres.Done:
-						if call.Error != nil {
-							if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
-								delete(needping, c)
-								c.Close()
-							}
-						} else {
-							res := call.Reply.(*string)
-							if *res == "pong" {
-								delete(needping, c)
-							}
-						}
-					default:
-					}
-				default:
-				}
-			}
-		}
-		cancel()
-	}
-	for c := range needping {
-		if c.IsUsed() {
-			continue
-		}
-		c.Close()
-	}
-}
-
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {
 	cs := &ClientStore{
 		connFunc,
@@ -216,11 +120,5 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		sync.Mutex{},
 		make(map[peer.ID]chan int),
 	}
-	go func() {
-		for {
-			time.Sleep(time.Millisecond * time.Duration(client.PPI))
-			cs.PongDetect()
-		}
-	}()
 	return cs
 }

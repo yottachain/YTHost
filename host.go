@@ -187,10 +187,9 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 		hst.Cs,
 	)
 	if err != nil {
-		_ = clt.Close()
+		clt.Close()
 		return nil, err
 	}
-	ytclt.Cs.CccAdd()
 	return ytclt, nil
 }
 
@@ -200,6 +199,11 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	var isOK int32 = 0
 	for _, addr := range mas {
 		go func(addr multiaddr.Multiaddr) {
+			defer func() {
+				if r := recover(); r != nil {
+					resChan <- r.(error)
+				}
+			}()
 			d := &mnet.Dialer{}
 			if conn, err := d.DialContext(ctx, addr); err == nil {
 				if atomic.AddInt32(&isOK, 1) > 1 {
@@ -257,12 +261,12 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 	return res, err
 }
 
-func (hst *host) AsyncSendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) (*rpc.Call, error) {
+func (hst *host) PushMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) (*client.YTCall, error) {
 	clt, ok := hst.ClientStore().GetClient(pid)
 	if !ok {
 		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
 	}
-	return clt.AsyncSendMsg(ctx, mid, msg)
+	return clt.PushMsg(ctx, mid, msg)
 }
 
 func (hst *host) SendMsgAuto(ctx context.Context, pid peer.ID, mid int32, ma multiaddr.Multiaddr, msg []byte) ([]byte, error) {
