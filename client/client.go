@@ -82,7 +82,7 @@ type YTHostClient struct {
 	isClosed bool
 
 	Cs      *stat.ConnStat
-	ConnMap sync.Map
+	Remover func(pid peer.ID)
 }
 
 func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat) (*YTHostClient, error) {
@@ -233,7 +233,7 @@ func (yc *YTHostClient) Close() (err error) {
 		return nil
 	}
 	yc.isClosed = true
-	yc.ConnMap.Delete(yc.RemotePeer().ID)
+	yc.Remover(yc.RemotePeer().ID)
 	yc.Cs.CccSub()
 	err = yc.Client.Close()
 	logrus.Debugf("[HostClient]Disconnect %s,current connections %d\n", yc.RemotePeer().ID, yc.Cs.CliConnCount)

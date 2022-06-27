@@ -14,18 +14,15 @@ import (
 
 type ClientStore struct {
 	connect  func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)
-	connects sync.Map
-	sync.Mutex
+	connects map[peer.ID]*client.YTHostClient
+	sync.RWMutex
 	IdLockMap map[peer.ID]chan int
 }
 
 func (cs *ClientStore) GetUsePid(pid peer.ID) *client.YTHostClient {
-	_c, ok := cs.connects.Load(pid)
-	if ok {
-		return _c.(*client.YTHostClient)
-	} else {
-		return nil
-	}
+	cs.RLock()
+	defer cs.RUnlock()
+	return cs.connects[pid]
 }
 
 func (cs *ClientStore) BackConnect(pid peer.ID, addrs []string) {
@@ -43,8 +40,10 @@ func (cs *ClientStore) BackConnect(pid peer.ID, addrs []string) {
 }
 
 func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-	if c, ok := cs.connects.Load(pid); ok {
-		return c.(*client.YTHostClient), nil
+	cs.RLock()
+	defer cs.RUnlock()
+	if c, ok := cs.connects[pid]; ok {
+		return c, nil
 	}
 	return cs.get(ctx, pid, mas)
 }
@@ -61,17 +60,17 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	select {
 	case idLock <- 1:
 		defer func() { <-idLock }()
-		_c, ok := cs.connects.Load(pid)
+		c, ok := cs.GetClient(pid)
 		if !ok {
 			if clt, err := cs.connect(ctx, pid, mas); err != nil {
 				return nil, err
 			} else {
-				clt.ConnMap = cs.connects
-				cs.connects.Store(pid, clt)
+				clt.Remover = cs.DelClient
+				cs.AddClient(pid, clt)
 				return clt, nil
 			}
 		} else {
-			return _c.(*client.YTHostClient), nil
+			return c, nil
 		}
 	case <-ctx.Done():
 		return nil, fmt.Errorf("ctx time out:waiting to connect")
@@ -96,29 +95,37 @@ func (cs *ClientStore) GetByAddrString(ctx context.Context, id string, addrs []s
 }
 
 func (cs *ClientStore) Close(pid peer.ID) error {
-	_clt, ok := cs.connects.Load(pid)
+	clt, ok := cs.GetClient(pid)
 	if !ok {
 		return fmt.Errorf("no find client ID is %s", pid.Pretty())
 	}
-	clt := _clt.(*client.YTHostClient)
 	return clt.Close()
 }
 
+func (cs *ClientStore) DelClient(pid peer.ID) {
+	cs.Lock()
+	defer cs.Unlock()
+	delete(cs.connects, pid)
+}
+
+func (cs *ClientStore) AddClient(pid peer.ID, c *client.YTHostClient) {
+	cs.Lock()
+	defer cs.Unlock()
+	cs.connects[pid] = c
+}
+
 func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
-	_clt, ok := cs.connects.Load(pid)
-	if ok {
-		clt := _clt.(*client.YTHostClient)
-		return clt, ok
-	}
-	return nil, ok
+	cs.RLock()
+	defer cs.RUnlock()
+	c, ok := cs.connects[pid]
+	return c, ok
 }
 
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {
 	cs := &ClientStore{
-		connFunc,
-		sync.Map{},
-		sync.Mutex{},
-		make(map[peer.ID]chan int),
+		connect:   connFunc,
+		connects:  make(map[peer.ID]*client.YTHostClient),
+		IdLockMap: make(map[peer.ID]chan int),
 	}
 	return cs
 }
