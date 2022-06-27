@@ -19,12 +19,6 @@ type ClientStore struct {
 	IdLockMap map[peer.ID]chan int
 }
 
-func (cs *ClientStore) GetUsePid(pid peer.ID) *client.YTHostClient {
-	cs.RLock()
-	defer cs.RUnlock()
-	return cs.connects[pid]
-}
-
 func (cs *ClientStore) BackConnect(pid peer.ID, addrs []string) {
 	var mas = make([]multiaddr.Multiaddr, len(addrs))
 	for k, v := range addrs {
@@ -40,9 +34,7 @@ func (cs *ClientStore) BackConnect(pid peer.ID, addrs []string) {
 }
 
 func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-	cs.RLock()
-	defer cs.RUnlock()
-	if c, ok := cs.connects[pid]; ok {
+	if c, ok := cs.GetClient(pid); ok {
 		return c, nil
 	}
 	return cs.get(ctx, pid, mas)
