@@ -13,14 +13,14 @@ import (
 )
 
 type ClientStore struct {
-	connect func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)
-	sync.Map
+	connect  func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)
+	connects sync.Map
 	sync.Mutex
 	IdLockMap map[peer.ID]chan int
 }
 
 func (cs *ClientStore) GetUsePid(pid peer.ID) *client.YTHostClient {
-	_c, ok := cs.Map.Load(pid)
+	_c, ok := cs.connects.Load(pid)
 	if ok {
 		return _c.(*client.YTHostClient)
 	} else {
@@ -43,7 +43,7 @@ func (cs *ClientStore) BackConnect(pid peer.ID, addrs []string) {
 }
 
 func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-	if c, ok := cs.Map.Load(pid); ok {
+	if c, ok := cs.connects.Load(pid); ok {
 		return c.(*client.YTHostClient), nil
 	}
 	return cs.get(ctx, pid, mas)
@@ -61,13 +61,13 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	select {
 	case idLock <- 1:
 		defer func() { <-idLock }()
-		_c, ok := cs.Map.Load(pid)
+		_c, ok := cs.connects.Load(pid)
 		if !ok {
 			if clt, err := cs.connect(ctx, pid, mas); err != nil {
 				return nil, err
 			} else {
-				clt.ConnMap = cs.Map
-				cs.Map.Store(pid, clt)
+				clt.ConnMap = cs.connects
+				cs.connects.Store(pid, clt)
 				return clt, nil
 			}
 		} else {
@@ -96,7 +96,7 @@ func (cs *ClientStore) GetByAddrString(ctx context.Context, id string, addrs []s
 }
 
 func (cs *ClientStore) Close(pid peer.ID) error {
-	_clt, ok := cs.Load(pid)
+	_clt, ok := cs.connects.Load(pid)
 	if !ok {
 		return fmt.Errorf("no find client ID is %s", pid.Pretty())
 	}
@@ -105,7 +105,7 @@ func (cs *ClientStore) Close(pid peer.ID) error {
 }
 
 func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
-	_clt, ok := cs.Load(pid)
+	_clt, ok := cs.connects.Load(pid)
 	if ok {
 		clt := _clt.(*client.YTHostClient)
 		return clt, ok
