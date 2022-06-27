@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -208,6 +209,7 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 			if conn, err := d.DialContext(ctx, addr); err == nil {
 				if atomic.AddInt32(&isOK, 1) > 1 {
 					conn.Close()
+					resChan <- errors.New("")
 				} else {
 					resChan <- conn
 				}
