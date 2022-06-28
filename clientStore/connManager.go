@@ -16,7 +16,7 @@ type ClientStore struct {
 	connect  func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)
 	connects map[peer.ID]*client.YTHostClient
 	sync.RWMutex
-	IdLockMap map[peer.ID]chan int
+	IdLockMap map[peer.ID]chan time.Time
 }
 
 func (cs *ClientStore) BackConnect(pid peer.ID, addrs []string) {
@@ -41,22 +41,32 @@ func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 }
 
 func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-	cs.Lock() //len(IdLockMap)需要控制，定期清理
+	cs.Lock()
 	idLock, ok := cs.IdLockMap[pid]
 	if !ok {
-		idLock = make(chan int, 1)
+		idLock = make(chan time.Time, 1)
+		idLock <- time.Unix(0, 0)
 		cs.IdLockMap[pid] = idLock
 	}
 	cs.Unlock()
-
+	if ctx == context.Background() {
+		ctxcon, cancel := context.WithTimeout(ctx, time.Duration(client.GlobalClientOption.ConnectTimeout)*time.Millisecond)
+		defer cancel()
+		ctx = ctxcon
+	}
 	select {
-	case idLock <- 1:
-		defer func() { <-idLock }()
+	case state := <-idLock:
+		defer func() { idLock <- state }()
 		c, ok := cs.GetClient(pid)
 		if !ok {
+			if time.Since(state) < time.Duration(client.GlobalClientOption.ConnectTimeout)*time.Millisecond {
+				return nil, fmt.Errorf("connection failed:retry frequently")
+			}
 			if clt, err := cs.connect(ctx, pid, mas); err != nil {
+				state = time.Now()
 				return nil, err
 			} else {
+				state = time.Unix(0, 0)
 				clt.Remover = cs.DelClient
 				cs.AddClient(pid, clt)
 				return clt, nil
@@ -117,7 +127,7 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 	cs := &ClientStore{
 		connect:   connFunc,
 		connects:  make(map[peer.ID]*client.YTHostClient),
-		IdLockMap: make(map[peer.ID]chan int),
+		IdLockMap: make(map[peer.ID]chan time.Time),
 	}
 	return cs
 }

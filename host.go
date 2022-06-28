@@ -214,9 +214,7 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 					resChan <- conn
 				}
 			} else {
-				if atomic.LoadInt32(&isOK) == 0 {
-					resChan <- err
-				}
+				resChan <- err
 			}
 		}(addr)
 	}

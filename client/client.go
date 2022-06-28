@@ -40,6 +40,11 @@ type YTCall struct {
 }
 
 func (ytcall *YTCall) WriteDone(ctx context.Context) error {
+	if ctx == context.Background() {
+		ctxwrite, cancel := context.WithTimeout(ctx, time.Duration(GlobalClientOption.WriteTimeout)*time.Millisecond)
+		defer cancel()
+		ctx = ctxwrite
+	}
 	select {
 	case ytcall.call = <-ytcall.writeDone:
 		return nil
@@ -50,6 +55,11 @@ func (ytcall *YTCall) WriteDone(ctx context.Context) error {
 }
 
 func (ytcall *YTCall) Done(ctx context.Context) ([]byte, error) {
+	if ctx == context.Background() {
+		ctxread, cancel := context.WithTimeout(ctx, time.Duration(GlobalClientOption.ReadTimeout)*time.Millisecond)
+		defer cancel()
+		ctx = ctxread
+	}
 	if ytcall.call == nil {
 		return nil, fmt.Errorf("message not sent")
 	}
@@ -202,6 +212,11 @@ func (yc *YTHostClient) PushMsg(ctx context.Context, id int32, data []byte) (*YT
 		cancel:    0,
 		client:    yc,
 	}
+	if ctx == context.Background() {
+		ctxpush, cancel := context.WithTimeout(ctx, time.Duration(GlobalClientOption.QueueTimeout)*time.Millisecond)
+		defer cancel()
+		ctx = ctxpush
+	}
 	select {
 	case yc.reqQueue <- msg:
 		return msg, nil
@@ -211,15 +226,11 @@ func (yc *YTHostClient) PushMsg(ctx context.Context, id int32, data []byte) (*YT
 }
 
 func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]byte, error) {
-	ctx_push, cancel_push := context.WithTimeout(context.Background(), time.Duration(GlobalClientOption.QueueTimeout)*time.Millisecond)
-	defer cancel_push()
-	ytcall, err := yc.PushMsg(ctx_push, id, data)
+	ytcall, err := yc.PushMsg(context.Background(), id, data)
 	if err != nil {
 		return nil, err
 	}
-	ctx_write, cancel_write := context.WithTimeout(context.Background(), time.Duration(GlobalClientOption.WriteTimeout)*time.Millisecond)
-	defer cancel_write()
-	err = ytcall.WriteDone(ctx_write)
+	err = ytcall.WriteDone(context.Background())
 	if err != nil {
 		return nil, err
 	}
