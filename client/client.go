@@ -91,8 +91,9 @@ type YTHostClient struct {
 	reqQueue chan *YTCall
 	isClosed bool
 
-	Cs      *stat.ConnStat
-	Remover func(pid peer.ID)
+	Cs       *stat.ConnStat
+	Remover  func(pid peer.ID)
+	lastSend int64
 }
 
 func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat) (*YTHostClient, error) {
@@ -132,7 +133,9 @@ func (yc *YTHostClient) DoSend() {
 			if yc.isClosed {
 				return
 			}
+			atomic.StoreInt64(&yc.lastSend, time.Now().Unix())
 			req.writeDone <- yc.Go("ms.HandleMsg", req.args, req.reply, make(chan *rpc.Call, 1))
+			atomic.StoreInt64(&yc.lastSend, 0)
 			pingerr = 0
 			pingcall = nil
 			lasttime = time.Now()
@@ -142,7 +145,9 @@ func (yc *YTHostClient) DoSend() {
 				return
 			}
 			if pingcall == nil {
+				atomic.StoreInt64(&yc.lastSend, time.Now().Unix())
 				pingcall = yc.Go("ms.Ping", "ping", new(string), make(chan *rpc.Call, 1))
+				atomic.StoreInt64(&yc.lastSend, 0)
 			} else {
 				select {
 				case call := <-pingcall.Done:
@@ -162,11 +167,21 @@ func (yc *YTHostClient) DoSend() {
 					yc.Close()
 					return
 				}
+				atomic.StoreInt64(&yc.lastSend, time.Now().Unix())
 				pingcall = yc.Go("ms.Ping", "ping", new(string), make(chan *rpc.Call, 1))
+				atomic.StoreInt64(&yc.lastSend, 0)
 			}
 		}
 		timer.Reset(time.Millisecond * time.Duration(GlobalClientOption.PingInterval))
 	}
+}
+
+func (yc *YTHostClient) IsDazed() bool {
+	lt := atomic.LoadInt64(&yc.lastSend)
+	if lt > 0 && (time.Now().Unix()-lt)*1000 > int64(GlobalClientOption.WriteTimeout)*3 {
+		return true
+	}
+	return false
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {

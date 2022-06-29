@@ -123,11 +123,30 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 	return c, ok
 }
 
+func (cs *ClientStore) CheckDeadConnetion() {
+	cs.RLock()
+	var cons []*client.YTHostClient
+	for _, c := range cs.connects {
+		cons = append(cons, c)
+	}
+	cs.RUnlock()
+	for _, c := range cons {
+		if c.IsDazed() {
+			c.Close()
+		}
+	}
+
+}
+
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {
 	cs := &ClientStore{
 		connect:   connFunc,
 		connects:  make(map[peer.ID]*client.YTHostClient),
 		IdLockMap: make(map[peer.ID]chan time.Time),
 	}
+	go func() {
+		time.Sleep(time.Millisecond * time.Duration(client.GlobalClientOption.WriteTimeout))
+		cs.CheckDeadConnetion()
+	}()
 	return cs
 }
