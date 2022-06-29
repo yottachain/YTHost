@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/sirupsen/logrus"
 	"github.com/yottachain/YTHost/client"
 )
 
@@ -132,10 +133,21 @@ func (cs *ClientStore) CheckDeadConnetion() {
 	cs.RUnlock()
 	for _, c := range cons {
 		if c.IsDazed() {
+			logrus.Debugf("[ClientStore]Peer %s is dazed,shut it down\n", c.RemotePeer().ID)
 			c.Close()
 		}
 	}
-
+	size := 0
+	cs.RLock()
+	size = len(cs.connects)
+	cs.RUnlock()
+	if size == 0 {
+		cs.Lock()
+		cs.IdLockMap = make(map[peer.ID]chan time.Time)
+		cs.Unlock()
+	} else {
+		logrus.Debugf("[ClientStore]Current connections %d\n", size)
+	}
 }
 
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {

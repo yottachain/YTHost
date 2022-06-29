@@ -115,7 +115,6 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, c
 	}
 	go yc.DoSend()
 	cs.CccAdd()
-	logrus.Debugf("[HostClient]Successfully connected to %s,current connections %d\n", yc.RemotePeer().ID, yc.Cs.CliConnCount)
 	return yc, nil
 }
 
@@ -164,6 +163,7 @@ func (yc *YTHostClient) DoSend() {
 					pingerr++
 				}
 				if pingerr >= 3 {
+					logrus.Debugf("[HostClient]Peer %s is dead,shut it down\n", yc.RemotePeer().ID)
 					yc.Close()
 					return
 				}
@@ -262,7 +262,6 @@ func (yc *YTHostClient) Close() (err error) {
 	yc.Remover(yc.RemotePeer().ID)
 	yc.Cs.CccSub()
 	err = yc.Client.Close()
-	logrus.Debugf("[HostClient]Disconnect %s,current connections %d\n", yc.RemotePeer().ID, yc.Cs.CliConnCount)
 	return
 }
 
