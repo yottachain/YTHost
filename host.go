@@ -206,7 +206,9 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 				}
 			}()
 			d := &mnet.Dialer{}
-			if conn, err := d.DialContext(ctx, addr); err == nil {
+			cctx, c := context.WithTimeout(ctx, time.Duration(client.GlobalClientOption.ConnectTimeout)*time.Millisecond)
+			defer c()
+			if conn, err := d.DialContext(cctx, addr); err == nil {
 				if atomic.AddInt32(&isOK, 1) > 1 {
 					conn.Close()
 					resChan <- errors.New("")
