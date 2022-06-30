@@ -141,17 +141,18 @@ func (yc *YTHostClient) DoSend() {
 			if atomic.LoadInt32(&req.cancel) > 0 {
 				break
 			}
-			if yc.isClosed {
+			if yc.IsClosed() {
 				return
 			}
-			atomic.StoreInt64(&yc.lastSend, time.Now().Unix())
+			lasttime = time.Now()
+			atomic.StoreInt64(&yc.lastSend, lasttime.Unix())
 			req.writeDone <- yc.Go("ms.HandleMsg", req.args, req.reply, make(chan *rpc.Call, 1))
 			atomic.StoreInt64(&yc.lastSend, 0)
 			pingerr = 0
 			pingcall = nil
 			lasttime = time.Now()
 		case <-timer.C:
-			if yc.isClosed || time.Since(lasttime).Milliseconds() > int64(GlobalClientOption.IdleTimeout) {
+			if yc.IsClosed() || time.Since(lasttime).Milliseconds() > int64(GlobalClientOption.IdleTimeout) {
 				yc.Close()
 				return
 			}

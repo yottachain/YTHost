@@ -137,17 +137,9 @@ func (cs *ClientStore) CheckDeadConnetion() {
 			c.Close()
 		}
 	}
-	size := 0
 	cs.RLock()
-	size = len(cs.connects)
+	logrus.Debugf("[ClientStore]Current connections %d\n", len(cs.connects))
 	cs.RUnlock()
-	if size == 0 {
-		cs.Lock()
-		cs.IdLockMap = make(map[peer.ID]chan time.Time)
-		cs.Unlock()
-	} else {
-		logrus.Debugf("[ClientStore]Current connections %d\n", size)
-	}
 }
 
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {
