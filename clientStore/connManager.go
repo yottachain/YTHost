@@ -68,7 +68,11 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 				return nil, err
 			} else {
 				state = time.Unix(0, 0)
-				clt.Start(cs.DelClient)
+				clt.Start(func() {
+					cs.Lock()
+					defer cs.Unlock()
+					delete(cs.connects, pid)
+				})
 				cs.AddClient(pid, clt)
 				return clt, nil
 			}
@@ -105,12 +109,6 @@ func (cs *ClientStore) Close(pid peer.ID) error {
 	return clt.Close()
 }
 
-func (cs *ClientStore) DelClient(pid peer.ID) {
-	cs.Lock()
-	defer cs.Unlock()
-	delete(cs.connects, pid)
-}
-
 func (cs *ClientStore) AddClient(pid peer.ID, c *client.YTHostClient) {
 	cs.Lock()
 	defer cs.Unlock()
@@ -141,9 +139,6 @@ func (cs *ClientStore) CheckDeadConnetion() {
 		if c.IsDazed() {
 			logrus.Debugf("[ClientStore]Peer %s is dazed,shut it down\n", c.RemotePeer().ID)
 			c.Close()
-		}
-		if c.IsClosed() {
-			cs.DelClient(c.RemotePeer().ID)
 		}
 	}
 	size := cs.GetConnections()

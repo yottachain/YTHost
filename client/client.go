@@ -92,7 +92,7 @@ type YTHostClient struct {
 	isClosed bool
 
 	Cs       *stat.ConnStat
-	Remover  func(pid peer.ID)
+	Remover  func()
 	lastSend int64
 }
 
@@ -124,7 +124,7 @@ func WarpClient(ctx context.Context, clt *rpc.Client, pi *peer.AddrInfo, pk cryp
 	return yc, nil
 }
 
-func (yc *YTHostClient) Start(remover func(pid peer.ID)) {
+func (yc *YTHostClient) Start(remover func()) {
 	yc.Remover = remover
 	yc.Cs.CccAdd()
 	go yc.DoSend()
@@ -282,7 +282,7 @@ func (yc *YTHostClient) Close() (err error) {
 		return nil
 	}
 	yc.isClosed = true
-	yc.Remover(yc.RemotePeer().ID)
+	yc.Remover()
 	yc.Cs.CccSub()
 	err = yc.Client.Close()
 	return
