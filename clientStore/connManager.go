@@ -137,13 +137,12 @@ func (cs *ClientStore) CheckDeadConnetion() {
 	cs.RUnlock()
 	for _, c := range cons {
 		if c.IsDazed() {
-			logrus.Debugf("[ClientStore]Peer %s is dazed,shut it down\n", c.RemotePeer().ID)
 			c.Close()
 		}
 	}
 	size := cs.GetConnections()
 	if size > 0 {
-		logrus.Debugf("[ClientStore]Current connections %d\n", size)
+		logrus.Tracef("[ClientStore]Current connections %d\n", size)
 	} else {
 		cs.Lock()
 		defer cs.Unlock()
