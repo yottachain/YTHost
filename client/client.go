@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/rpc"
 	"sync"
 	"sync/atomic"
@@ -12,7 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/sirupsen/logrus"
 	"github.com/yottachain/YTHost/service"
 	"github.com/yottachain/YTHost/stat"
 )
@@ -26,8 +26,28 @@ type ClientOption struct {
 	WriteTimeout   int
 	ReadTimeout    int
 
-	IdleTimeout  int
-	PingInterval int
+	MuteTimeout int
+	IdleTimeout int
+}
+
+type YTConn struct {
+	net.Conn
+	lastRead *int64
+}
+
+func (conn *YTConn) SetLastRead(lastRead *int64) {
+	conn.lastRead = lastRead
+}
+
+func (conn *YTConn) Read(buf []byte) (int, error) {
+	n, err := conn.Conn.Read(buf)
+	if err != nil {
+		return n, err
+	}
+	if n > 0 {
+		atomic.StoreInt64(conn.lastRead, time.Now().Unix())
+	}
+	return n, err
 }
 
 type YTCall struct {
@@ -91,50 +111,39 @@ type YTHostClient struct {
 	reqQueue chan *YTCall
 	isClosed bool
 
-	Cs       *stat.ConnStat
-	Remover  func()
-	lastSend int64
+	Cs        *stat.ConnStat
+	Remover   func()
+	lastRead  *int64
+	lastWrite *int64
 }
 
-func WarpClient(ctx context.Context, clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat) (*YTHostClient, error) {
+func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat, lread *int64) *YTHostClient {
 	yc := &YTHostClient{
 		Client:      clt,
 		localPeerID: pi.ID,
 		Version:     v,
-		RPI:         new(service.PeerInfo),
 		isClosed:    false,
 		Cs:          cs,
 		reqQueue:    make(chan *YTCall, GlobalClientOption.QueueSize),
+		lastWrite:   new(int64),
+		lastRead:    lread,
 	}
 	yc.localPeerPubKey, _ = pk.Raw()
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
 	}
-	infcall := yc.Go("as.RemotePeerInfo", "", yc.RPI, make(chan *rpc.Call, 1))
-	select {
-	case <-infcall.Done:
-		if infcall.Error != nil {
-			return nil, infcall.Error
-		} else {
-			break
-		}
-	case <-ctx.Done():
-		return nil, fmt.Errorf("ctx time out:getRemotePeerInfo")
-	}
-	return yc, nil
+	yc.Cs.CccAdd()
+	return yc
 }
 
 func (yc *YTHostClient) Start(remover func()) {
 	yc.Remover = remover
-	yc.Cs.CccAdd()
 	go yc.DoSend()
 }
 
 func (yc *YTHostClient) DoSend() {
-	pingerr := 0
 	lasttime := time.Now()
-	var pingcall *rpc.Call = nil
-	timer := time.NewTimer(time.Millisecond * time.Duration(GlobalClientOption.PingInterval))
+	timer := time.NewTimer(time.Millisecond * time.Duration(GlobalClientOption.WriteTimeout))
 	for {
 		select {
 		case req := <-yc.reqQueue:
@@ -145,85 +154,86 @@ func (yc *YTHostClient) DoSend() {
 				return
 			}
 			lasttime = time.Now()
-			atomic.StoreInt64(&yc.lastSend, lasttime.Unix())
+			atomic.StoreInt64(yc.lastWrite, lasttime.Unix())
 			req.writeDone <- yc.Go("ms.HandleMsg", req.args, req.reply, make(chan *rpc.Call, 1))
-			atomic.StoreInt64(&yc.lastSend, 0)
-			pingerr = 0
-			pingcall = nil
+			atomic.StoreInt64(yc.lastWrite, 0)
 			lasttime = time.Now()
 		case <-timer.C:
 			if yc.IsClosed() || time.Since(lasttime).Milliseconds() > int64(GlobalClientOption.IdleTimeout) {
 				yc.Close()
 				return
 			}
-			if pingcall == nil {
-				atomic.StoreInt64(&yc.lastSend, time.Now().Unix())
-				pingcall = yc.Go("ms.Ping", "ping", new(string), make(chan *rpc.Call, 1))
-				atomic.StoreInt64(&yc.lastSend, 0)
-			} else {
-				select {
-				case call := <-pingcall.Done:
-					if call.Error != nil {
-						if call.Error == rpc.ErrShutdown || call.Error == io.ErrUnexpectedEOF {
-							yc.Close()
-							return
-						}
-						pingerr++
-					} else {
-						pingerr = 0
-					}
-				default:
-					pingerr++
-				}
-				if pingerr >= 3 {
-					logrus.Debugf("[HostClient]Peer %s is dead,shut it down\n", yc.RemotePeer().ID)
-					yc.Close()
-					return
-				}
-				atomic.StoreInt64(&yc.lastSend, time.Now().Unix())
-				pingcall = yc.Go("ms.Ping", "ping", new(string), make(chan *rpc.Call, 1))
-				atomic.StoreInt64(&yc.lastSend, 0)
+			lrt := atomic.LoadInt64(yc.lastRead)
+			if lrt > 0 && (time.Now().Unix()-lrt)*1000 > int64(GlobalClientOption.MuteTimeout) {
+				yc.Close()
+				return
 			}
+			atomic.StoreInt64(yc.lastWrite, time.Now().Unix())
+			yc.Go("ms.Ping", "ping", new(string), make(chan *rpc.Call, 1))
+			atomic.StoreInt64(yc.lastWrite, 0)
 		}
-		timer.Reset(time.Millisecond * time.Duration(GlobalClientOption.PingInterval))
+		timer.Reset(time.Millisecond * time.Duration(GlobalClientOption.WriteTimeout))
 	}
 }
 
 func (yc *YTHostClient) IsDazed() bool {
-	lt := atomic.LoadInt64(&yc.lastSend)
-	if lt > 0 && (time.Now().Unix()-lt)*1000 > int64(GlobalClientOption.WriteTimeout)*3 {
+	lwt := atomic.LoadInt64(yc.lastWrite)
+	if lwt > 0 && (time.Now().Unix()-lwt)*1000 > int64(GlobalClientOption.MuteTimeout) {
 		return true
 	}
 	return false
 }
 
-func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
-	var ai peer.AddrInfo
-	ai.ID = yc.RPI.ID
-	for _, addr := range yc.RPI.Addrs {
-		ma, _ := multiaddr.NewMultiaddr(addr)
-		ai.Addrs = append(ai.Addrs, ma)
+func (yc *YTHostClient) RemotePeerInfo() (*service.PeerInfo, error) {
+	info := new(service.PeerInfo)
+	yc.Lock()
+	defer yc.Unlock()
+	if yc.RPI == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(GlobalClientOption.ConnectTimeout)*time.Millisecond)
+		defer cancel()
+		infcall := yc.Go("as.RemotePeerInfo", "", info, make(chan *rpc.Call, 1))
+		select {
+		case <-infcall.Done:
+			if infcall.Error != nil {
+				return nil, infcall.Error
+			} else {
+				yc.RPI = info
+				return yc.RPI, nil
+			}
+		case <-ctx.Done():
+			return nil, fmt.Errorf("ctx time out:getRemotePeerInfo")
+		}
+	} else {
+		return yc.RPI, nil
 	}
-	return ai
 }
 
-func (yc *YTHostClient) CallRemotePeer(ctx context.Context) peer.AddrInfo {
+func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
 	var ai peer.AddrInfo
-	ai.ID = yc.RPI.ID
-	for _, addr := range yc.RPI.Addrs {
-		ma, _ := multiaddr.NewMultiaddr(addr)
-		ai.Addrs = append(ai.Addrs, ma)
+	if info, err := yc.RemotePeerInfo(); err == nil {
+		ai.ID = info.ID
+		for _, addr := range info.Addrs {
+			ma, _ := multiaddr.NewMultiaddr(addr)
+			ai.Addrs = append(ai.Addrs, ma)
+		}
 	}
 	return ai
 }
 
 func (yc *YTHostClient) RemotePeerPubkey() crypto.PubKey {
-	pk, _ := crypto.UnmarshalPublicKey(yc.RPI.PubKey)
-	return pk
+	if info, err := yc.RemotePeerInfo(); err == nil {
+		if pk, er := crypto.UnmarshalPublicKey(info.PubKey); er == nil {
+			return pk
+		}
+	}
+	return nil
 }
 
 func (yc *YTHostClient) RemotePeerVersion() int32 {
-	return yc.RPI.Version
+	if info, err := yc.RemotePeerInfo(); err == nil {
+		return info.Version
+	}
+	return 0
 }
 
 func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
@@ -282,7 +292,9 @@ func (yc *YTHostClient) Close() (err error) {
 		return nil
 	}
 	yc.isClosed = true
-	yc.Remover()
+	if yc.Remover != nil {
+		yc.Remover()
+	}
 	yc.Cs.CccSub()
 	err = yc.Client.Close()
 	return

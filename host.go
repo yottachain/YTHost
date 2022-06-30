@@ -187,22 +187,20 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 			}()
 			d := &mnet.Dialer{}
 			if conn, err := d.DialContext(ctx, addr); err == nil {
-				ytclt, err := client.WarpClient(ctx, rpc.NewClient(conn),
+				lastread := new(int64)
+				ytcon := &client.YTConn{}
+				ytcon.Conn = conn
+				ytcon.SetLastRead(lastread)
+				ytclt := client.WarpClient(rpc.NewClient(ytcon),
 					&peer.AddrInfo{ID: hst.cfg.ID, Addrs: hst.Addrs()},
 					hst.cfg.Privkey.GetPublic(),
-					hst.Config().Version,
-					hst.Cs,
+					hst.Config().Version, hst.Cs, lastread,
 				)
-				if err != nil {
+				if atomic.AddInt32(&isOK, 1) > 1 {
 					conn.Close()
-					resChan <- err
+					resChan <- errors.New("ctx time out:connecting")
 				} else {
-					if atomic.AddInt32(&isOK, 1) > 1 {
-						conn.Close()
-						resChan <- errors.New("ctx time out:connecting")
-					} else {
-						resChan <- ytclt
-					}
+					resChan <- ytclt
 				}
 			} else {
 				resChan <- err
