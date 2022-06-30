@@ -84,7 +84,7 @@ func (hst *host) Accept() {
 		}
 		hst.Cs.SccAdd()
 		ac := connAutoCloser.New(conn)
-		ac.SetOuttime(time.Minute * 5)
+		ac.SetOuttime(time.Duration(client.GlobalClientOption.IdleTimeout) * time.Millisecond)
 		go func() {
 			hst.srv.ServeConn(ac)
 			hst.Cs.SccSub()

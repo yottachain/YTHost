@@ -17,7 +17,7 @@ import (
 	"github.com/yottachain/YTHost/stat"
 )
 
-var GlobalClientOption = &ClientOption{1, 5000, 2000, 3000, 10000, 60000 * 3, 30000}
+var GlobalClientOption = &ClientOption{1, 5000, 5000, 10000, 15000, 60000 * 3, 60000}
 
 type ClientOption struct {
 	QueueSize      int
