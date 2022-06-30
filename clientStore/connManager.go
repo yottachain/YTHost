@@ -157,8 +157,10 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 		IdLockMap: make(map[peer.ID]chan time.Time),
 	}
 	go func() {
-		time.Sleep(time.Millisecond * time.Duration(client.GlobalClientOption.WriteTimeout))
-		cs.CheckDeadConnetion()
+		for {
+			time.Sleep(3 * time.Millisecond * time.Duration(client.GlobalClientOption.WriteTimeout))
+			cs.CheckDeadConnetion()
+		}
 	}()
 	return cs
 }
