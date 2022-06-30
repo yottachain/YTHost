@@ -12,15 +12,16 @@ type ConnAutoCloser struct {
 	c       chan struct{}
 }
 
-func New(conn net.Conn) *ConnAutoCloser {
-	t := time.NewTimer(time.Minute)
+func New(conn net.Conn, otime time.Duration) *ConnAutoCloser {
+	t := time.NewTimer(otime)
+	cclose := &ConnAutoCloser{conn, otime, t, make(chan struct{}, 1)}
 	go func() {
 		<-t.C
 		if conn != nil {
 			conn.Close()
 		}
 	}()
-	return &ConnAutoCloser{conn, time.Minute, t, make(chan struct{}, 1)}
+	return cclose
 }
 
 func (conn *ConnAutoCloser) Stop() {
@@ -57,9 +58,4 @@ func (conn *ConnAutoCloser) Write(buf []byte) (int, error) {
 		conn.ResetTimer()
 	}
 	return n, err
-}
-
-func (conn *ConnAutoCloser) SetOuttime(duration time.Duration) {
-	conn.outtime = duration
-	conn.timer.Reset(conn.outtime)
 }

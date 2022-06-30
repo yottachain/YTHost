@@ -124,6 +124,12 @@ func (cs *ClientStore) GetClient(pid peer.ID) (*client.YTHostClient, bool) {
 	return c, ok
 }
 
+func (cs *ClientStore) GetConnections() int {
+	cs.RLock()
+	defer cs.RUnlock()
+	return len(cs.connects)
+}
+
 func (cs *ClientStore) CheckDeadConnetion() {
 	cs.RLock()
 	var cons []*client.YTHostClient
@@ -136,10 +142,18 @@ func (cs *ClientStore) CheckDeadConnetion() {
 			logrus.Debugf("[ClientStore]Peer %s is dazed,shut it down\n", c.RemotePeer().ID)
 			c.Close()
 		}
+		if c.IsClosed() {
+			cs.DelClient(c.RemotePeer().ID)
+		}
 	}
-	cs.RLock()
-	logrus.Debugf("[ClientStore]Current connections %d\n", len(cs.connects))
-	cs.RUnlock()
+	size := cs.GetConnections()
+	if size > 0 {
+		logrus.Debugf("[ClientStore]Current connections %d\n", size)
+	} else {
+		cs.Lock()
+		defer cs.Unlock()
+		cs.IdLockMap = make(map[peer.ID]chan time.Time)
+	}
 }
 
 func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error)) *ClientStore {
