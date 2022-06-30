@@ -176,27 +176,8 @@ func (hst *host) Addrs() []multiaddr.Multiaddr {
 }
 
 func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
-	conn, err := hst.connect(ctx, pid, mas)
-	if err != nil {
-		return nil, err
-	}
-	clt := rpc.NewClient(conn)
-	ytclt, err := client.WarpClient(clt,
-		&peer.AddrInfo{ID: hst.cfg.ID, Addrs: hst.Addrs()},
-		hst.cfg.Privkey.GetPublic(),
-		hst.Config().Version,
-		hst.Cs,
-	)
-	if err != nil {
-		clt.Close()
-		return nil, err
-	}
-	return ytclt, nil
-}
-
-func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (mnet.Conn, error) {
 	size := len(mas)
-	resChan := make(chan interface{}, len(mas))
+	resChan := make(chan interface{}, size)
 	var isOK int32 = 0
 	for _, addr := range mas {
 		go func(addr multiaddr.Multiaddr) {
@@ -206,14 +187,23 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 				}
 			}()
 			d := &mnet.Dialer{}
-			cctx, c := context.WithTimeout(ctx, time.Duration(client.GlobalClientOption.ConnectTimeout)*time.Millisecond)
-			defer c()
-			if conn, err := d.DialContext(cctx, addr); err == nil {
-				if atomic.AddInt32(&isOK, 1) > 1 {
+			if conn, err := d.DialContext(ctx, addr); err == nil {
+				ytclt, err := client.WarpClient(ctx, rpc.NewClient(conn),
+					&peer.AddrInfo{ID: hst.cfg.ID, Addrs: hst.Addrs()},
+					hst.cfg.Privkey.GetPublic(),
+					hst.Config().Version,
+					hst.Cs,
+				)
+				if err != nil {
 					conn.Close()
-					resChan <- errors.New("")
+					resChan <- err
 				} else {
-					resChan <- conn
+					if atomic.AddInt32(&isOK, 1) > 1 {
+						conn.Close()
+						resChan <- errors.New("ctx time out:connecting")
+					} else {
+						resChan <- ytclt
+					}
 				}
 			} else {
 				resChan <- err
@@ -222,19 +212,17 @@ func (hst *host) connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 	}
 	var errRes error
 	for ii := 0; ii < size; ii++ {
-		select {
-		case <-ctx.Done():
-			atomic.AddInt32(&isOK, 1)
-			return nil, fmt.Errorf("ctx time out:connecting")
-		case res := <-resChan:
-			if conn, ok := res.(mnet.Conn); ok {
-				return conn, nil
-			} else {
-				errRes = res.(error)
-			}
+		res := <-resChan
+		if conn, ok := res.(*client.YTHostClient); ok {
+			return conn, nil
+		} else {
+			errRes = res.(error)
 		}
 	}
-	return nil, fmt.Errorf("dail all maddr fail %s", errRes)
+	if errRes == nil {
+		return nil, fmt.Errorf("dail all maddr fail")
+	}
+	return nil, errRes
 }
 
 func (hst *host) ConnectAddrStrings(ctx context.Context, id string, addrs []string) (*client.YTHostClient, error) {

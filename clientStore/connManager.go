@@ -68,7 +68,7 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 				return nil, err
 			} else {
 				state = time.Unix(0, 0)
-				clt.Remover = cs.DelClient
+				clt.Start(cs.DelClient)
 				cs.AddClient(pid, clt)
 				return clt, nil
 			}

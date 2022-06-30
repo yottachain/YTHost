@@ -96,7 +96,7 @@ type YTHostClient struct {
 	lastSend int64
 }
 
-func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat) (*YTHostClient, error) {
+func WarpClient(ctx context.Context, clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat) (*YTHostClient, error) {
 	yc := &YTHostClient{
 		Client:      clt,
 		localPeerID: pi.ID,
@@ -110,12 +110,24 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, c
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
 	}
-	if err := yc.Call("as.RemotePeerInfo", "", yc.RPI); err != nil {
-		return nil, err
+	infcall := yc.Go("as.RemotePeerInfo", "", yc.RPI, make(chan *rpc.Call, 1))
+	select {
+	case <-infcall.Done:
+		if infcall.Error != nil {
+			return nil, infcall.Error
+		} else {
+			break
+		}
+	case <-ctx.Done():
+		return nil, fmt.Errorf("ctx time out:getRemotePeerInfo")
 	}
-	go yc.DoSend()
-	cs.CccAdd()
 	return yc, nil
+}
+
+func (yc *YTHostClient) Start(remover func(pid peer.ID)) {
+	yc.Remover = remover
+	yc.Cs.CccAdd()
+	go yc.DoSend()
 }
 
 func (yc *YTHostClient) DoSend() {
@@ -185,6 +197,16 @@ func (yc *YTHostClient) IsDazed() bool {
 }
 
 func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
+	var ai peer.AddrInfo
+	ai.ID = yc.RPI.ID
+	for _, addr := range yc.RPI.Addrs {
+		ma, _ := multiaddr.NewMultiaddr(addr)
+		ai.Addrs = append(ai.Addrs, ma)
+	}
+	return ai
+}
+
+func (yc *YTHostClient) CallRemotePeer(ctx context.Context) peer.AddrInfo {
 	var ai peer.AddrInfo
 	ai.ID = yc.RPI.ID
 	for _, addr := range yc.RPI.Addrs {
