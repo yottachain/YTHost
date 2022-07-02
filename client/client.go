@@ -17,7 +17,7 @@ import (
 	"github.com/yottachain/YTHost/stat"
 )
 
-var GlobalClientOption = &ClientOption{1, 5000, 5000, 10000, 15000, 60000 * 3, 60000}
+var GlobalClientOption = &ClientOption{2, 5000, 5000, 10000, 15000, 60000 * 3, 60000}
 
 type ClientOption struct {
 	QueueSize      int
@@ -32,11 +32,22 @@ type ClientOption struct {
 
 type YTConn struct {
 	net.Conn
-	lastRead *int64
+	activeTime *int64
 }
 
-func (conn *YTConn) SetLastRead(lastRead *int64) {
-	conn.lastRead = lastRead
+func (conn *YTConn) SetLastRead(aTime *int64) {
+	conn.activeTime = aTime
+}
+
+func (conn *YTConn) Write(buf []byte) (int, error) {
+	n, err := conn.Conn.Write(buf)
+	if err != nil {
+		return n, err
+	}
+	if n > 0 {
+		atomic.StoreInt64(conn.activeTime, time.Now().Unix())
+	}
+	return n, err
 }
 
 func (conn *YTConn) Read(buf []byte) (int, error) {
@@ -45,7 +56,7 @@ func (conn *YTConn) Read(buf []byte) (int, error) {
 		return n, err
 	}
 	if n > 0 {
-		atomic.StoreInt64(conn.lastRead, time.Now().Unix())
+		atomic.StoreInt64(conn.activeTime, time.Now().Unix())
 	}
 	return n, err
 }
@@ -74,7 +85,7 @@ func (ytcall *YTCall) WriteDone(ctx context.Context) error {
 	}
 }
 
-func (ytcall *YTCall) Done(ctx context.Context) ([]byte, error) {
+func (ytcall *YTCall) ReadDone(ctx context.Context) ([]byte, error) {
 	if ctx == context.Background() {
 		ctxread, cancel := context.WithTimeout(ctx, time.Duration(GlobalClientOption.ReadTimeout)*time.Millisecond)
 		defer cancel()
@@ -111,13 +122,12 @@ type YTHostClient struct {
 	reqQueue chan *YTCall
 	isClosed bool
 
-	Cs        *stat.ConnStat
-	Remover   func()
-	lastRead  *int64
-	lastWrite *int64
+	Cs         *stat.ConnStat
+	Remover    func()
+	activeTime *int64
 }
 
-func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat, lread *int64) *YTHostClient {
+func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat, aread *int64) *YTHostClient {
 	yc := &YTHostClient{
 		Client:      clt,
 		localPeerID: pi.ID,
@@ -125,19 +135,18 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, c
 		isClosed:    false,
 		Cs:          cs,
 		reqQueue:    make(chan *YTCall, GlobalClientOption.QueueSize),
-		lastWrite:   new(int64),
-		lastRead:    lread,
+		activeTime:  aread,
 	}
 	yc.localPeerPubKey, _ = pk.Raw()
 	for _, v := range pi.Addrs {
 		yc.localPeerAddrs = append(yc.localPeerAddrs, v.String())
 	}
-	yc.Cs.CccAdd()
 	return yc
 }
 
 func (yc *YTHostClient) Start(remover func()) {
 	yc.Remover = remover
+	yc.Cs.CccAdd()
 	go yc.DoSend()
 }
 
@@ -154,31 +163,22 @@ func (yc *YTHostClient) DoSend() {
 				return
 			}
 			lasttime = time.Now()
-			atomic.StoreInt64(yc.lastWrite, lasttime.Unix())
 			req.writeDone <- yc.Go("ms.HandleMsg", req.args, req.reply, make(chan *rpc.Call, 1))
-			atomic.StoreInt64(yc.lastWrite, 0)
 			lasttime = time.Now()
 		case <-timer.C:
-			if yc.IsClosed() || time.Since(lasttime).Milliseconds() > int64(GlobalClientOption.IdleTimeout) {
+			if yc.IsClosed() || yc.IsDazed() || time.Since(lasttime).Milliseconds() > int64(GlobalClientOption.IdleTimeout) {
 				yc.Close()
 				return
 			}
-			lrt := atomic.LoadInt64(yc.lastRead)
-			if lrt > 0 && (time.Now().Unix()-lrt)*1000 > int64(GlobalClientOption.MuteTimeout) {
-				yc.Close()
-				return
-			}
-			atomic.StoreInt64(yc.lastWrite, time.Now().Unix())
 			yc.Go("ms.Ping", "ping", new(string), make(chan *rpc.Call, 1))
-			atomic.StoreInt64(yc.lastWrite, 0)
 		}
 		timer.Reset(time.Millisecond * time.Duration(GlobalClientOption.WriteTimeout))
 	}
 }
 
 func (yc *YTHostClient) IsDazed() bool {
-	lwt := atomic.LoadInt64(yc.lastWrite)
-	if lwt > 0 && (time.Now().Unix()-lwt)*1000 > int64(GlobalClientOption.MuteTimeout) {
+	rwt := atomic.LoadInt64(yc.activeTime)
+	if rwt > 0 && (time.Now().Unix()-rwt)*1000 > int64(GlobalClientOption.MuteTimeout) {
 		return true
 	}
 	return false
@@ -282,7 +282,7 @@ func (yc *YTHostClient) SendMsg(ctx context.Context, id int32, data []byte) ([]b
 	if err != nil {
 		return nil, err
 	}
-	return ytcall.Done(ctx)
+	return ytcall.ReadDone(ctx)
 }
 
 func (yc *YTHostClient) Close() (err error) {

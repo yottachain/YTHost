@@ -158,7 +158,7 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 	}
 	go func() {
 		for {
-			time.Sleep(3 * time.Millisecond * time.Duration(client.GlobalClientOption.WriteTimeout))
+			time.Sleep(time.Millisecond * time.Duration(client.GlobalClientOption.MuteTimeout))
 			cs.CheckDeadConnetion()
 		}
 	}()
