@@ -62,7 +62,7 @@ func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	}
 	cs.Unlock()
 	if ctx == context.Background() {
-		ctxcon, cancel := context.WithTimeout(ctx, time.Duration(client.GlobalClientOption.ConnectTimeout)*time.Millisecond)
+		ctxcon, cancel := context.WithTimeout(ctx, time.Duration(client.ConnectTimeout)*time.Millisecond)
 		defer cancel()
 		ctx = ctxcon
 	}
@@ -71,7 +71,7 @@ func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 		defer func() { idLock <- state }()
 		c, ok := cs.GetClient(pid)
 		if !ok {
-			if time.Since(state) < time.Duration(client.GlobalClientOption.ConnectTimeout)*time.Millisecond {
+			if time.Since(state) < time.Duration(client.ConnectTimeout)*time.Millisecond {
 				return nil, fmt.Errorf("connection failed:retry frequently")
 			}
 			if clt, err := cs.connect(ctx, pid, mas); err != nil {
@@ -152,7 +152,7 @@ func NewClientStore(connFunc func(ctx context.Context, id peer.ID, mas []multiad
 	}
 	go func() {
 		for {
-			time.Sleep(time.Millisecond * time.Duration(client.GlobalClientOption.MuteTimeout))
+			time.Sleep(time.Millisecond * time.Duration(client.MuteTimeout))
 			cs.CheckDeadConnetion()
 		}
 	}()
