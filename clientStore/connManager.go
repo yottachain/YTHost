@@ -29,19 +29,30 @@ func (cs *ClientStore) BackConnect(pid peer.ID, addrs []string) {
 		}
 		mas[k] = ma
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(10))
-	defer cancel()
-	cs.Get(ctx, pid, mas)
+	cs.Get(context.Background(), pid, mas)
+}
+
+func (cs *ClientStore) GetByAddrString(ctx context.Context, id string, addrs []string) (*client.YTHostClient, error) {
+	buf, _ := base58.Decode(id)
+	pid, err := peer.IDFromBytes(buf)
+	if err != nil {
+		return nil, err
+	}
+	var mas = make([]multiaddr.Multiaddr, len(addrs))
+	for k, v := range addrs {
+		ma, err := multiaddr.NewMultiaddr(v)
+		if err != nil {
+			continue
+		}
+		mas[k] = ma
+	}
+	return cs.Get(ctx, pid, mas)
 }
 
 func (cs *ClientStore) Get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
 	if c, ok := cs.GetClient(pid); ok {
 		return c, nil
 	}
-	return cs.get(ctx, pid, mas)
-}
-
-func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Multiaddr) (*client.YTHostClient, error) {
 	cs.Lock()
 	idLock, ok := cs.IdLockMap[pid]
 	if !ok {
@@ -82,23 +93,6 @@ func (cs *ClientStore) get(ctx context.Context, pid peer.ID, mas []multiaddr.Mul
 	case <-ctx.Done():
 		return nil, fmt.Errorf("ctx time out:waiting to connect")
 	}
-}
-
-func (cs *ClientStore) GetByAddrString(ctx context.Context, id string, addrs []string) (*client.YTHostClient, error) {
-	buf, _ := base58.Decode(id)
-	pid, err := peer.IDFromBytes(buf)
-	if err != nil {
-		return nil, err
-	}
-	var mas = make([]multiaddr.Multiaddr, len(addrs))
-	for k, v := range addrs {
-		ma, err := multiaddr.NewMultiaddr(v)
-		if err != nil {
-			continue
-		}
-		mas[k] = ma
-	}
-	return cs.get(ctx, pid, mas)
 }
 
 func (cs *ClientStore) Close(pid peer.ID) error {

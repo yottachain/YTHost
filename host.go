@@ -83,7 +83,7 @@ func (hst *host) Accept() {
 			continue
 		}
 		hst.Cs.SccAdd()
-		ac := connAutoCloser.New(conn, time.Duration(client.GlobalClientOption.IdleTimeout)*time.Millisecond)
+		ac := connAutoCloser.New(conn, time.Duration(client.IdleTimeout)*time.Millisecond)
 		go func() {
 			hst.srv.ServeConn(ac)
 			hst.Cs.SccSub()
@@ -187,14 +187,9 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 			}()
 			d := &mnet.Dialer{}
 			if conn, err := d.DialContext(ctx, addr); err == nil {
-				lastread := new(int64)
-				ytcon := &client.YTConn{}
-				ytcon.Conn = conn
-				ytcon.SetLastRead(lastread)
-				ytclt := client.WarpClient(rpc.NewClient(ytcon),
-					&peer.AddrInfo{ID: hst.cfg.ID, Addrs: hst.Addrs()},
-					hst.cfg.Privkey.GetPublic(),
-					hst.Config().Version, hst.Cs, lastread,
+				ytcon := &client.YTConn{Conn: conn, ActiveTime: new(int64)}
+				ytclt := client.WarpClient(rpc.NewClient(ytcon), &peer.AddrInfo{ID: hst.cfg.ID, Addrs: hst.Addrs()},
+					hst.cfg.Privkey.GetPublic(), hst.Config().Version, hst.Cs, ytcon.ActiveTime,
 				)
 				if atomic.AddInt32(&isOK, 1) > 1 {
 					conn.Close()

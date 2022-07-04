@@ -17,26 +17,17 @@ import (
 	"github.com/yottachain/YTHost/stat"
 )
 
-var GlobalClientOption = &ClientOption{2, 5000, 5000, 10000, 15000, 60000 * 3, 60000}
-
-type ClientOption struct {
-	QueueSize      int
-	ConnectTimeout int
-	QueueTimeout   int
-	WriteTimeout   int
-	ReadTimeout    int
-
-	MuteTimeout int
-	IdleTimeout int
-}
+var QueueSize int = 2
+var ConnectTimeout int = 5000
+var QueueTimeout int = 5000
+var WriteTimeout int = 10000
+var ReadTimeout int = 15000
+var MuteTimeout int = 60000
+var IdleTimeout int = 60000 * 3
 
 type YTConn struct {
 	net.Conn
-	activeTime *int64
-}
-
-func (conn *YTConn) SetLastRead(aTime *int64) {
-	conn.activeTime = aTime
+	ActiveTime *int64
 }
 
 func (conn *YTConn) Write(buf []byte) (int, error) {
@@ -45,7 +36,7 @@ func (conn *YTConn) Write(buf []byte) (int, error) {
 		return n, err
 	}
 	if n > 0 {
-		atomic.StoreInt64(conn.activeTime, time.Now().Unix())
+		atomic.StoreInt64(conn.ActiveTime, time.Now().Unix())
 	}
 	return n, err
 }
@@ -56,7 +47,7 @@ func (conn *YTConn) Read(buf []byte) (int, error) {
 		return n, err
 	}
 	if n > 0 {
-		atomic.StoreInt64(conn.activeTime, time.Now().Unix())
+		atomic.StoreInt64(conn.ActiveTime, time.Now().Unix())
 	}
 	return n, err
 }
@@ -72,7 +63,7 @@ type YTCall struct {
 
 func (ytcall *YTCall) WriteDone(ctx context.Context) error {
 	if ctx == context.Background() {
-		ctxwrite, cancel := context.WithTimeout(ctx, time.Duration(GlobalClientOption.WriteTimeout)*time.Millisecond)
+		ctxwrite, cancel := context.WithTimeout(ctx, time.Duration(WriteTimeout)*time.Millisecond)
 		defer cancel()
 		ctx = ctxwrite
 	}
@@ -87,7 +78,7 @@ func (ytcall *YTCall) WriteDone(ctx context.Context) error {
 
 func (ytcall *YTCall) ReadDone(ctx context.Context) ([]byte, error) {
 	if ctx == context.Background() {
-		ctxread, cancel := context.WithTimeout(ctx, time.Duration(GlobalClientOption.ReadTimeout)*time.Millisecond)
+		ctxread, cancel := context.WithTimeout(ctx, time.Duration(ReadTimeout)*time.Millisecond)
 		defer cancel()
 		ctx = ctxread
 	}
@@ -134,7 +125,7 @@ func WarpClient(clt *rpc.Client, pi *peer.AddrInfo, pk crypto.PubKey, v int32, c
 		Version:     v,
 		isClosed:    false,
 		Cs:          cs,
-		reqQueue:    make(chan *YTCall, GlobalClientOption.QueueSize),
+		reqQueue:    make(chan *YTCall, QueueSize),
 		activeTime:  aread,
 	}
 	yc.localPeerPubKey, _ = pk.Raw()
@@ -152,7 +143,7 @@ func (yc *YTHostClient) Start(remover func()) {
 
 func (yc *YTHostClient) DoSend() {
 	lasttime := time.Now()
-	timer := time.NewTimer(time.Millisecond * time.Duration(GlobalClientOption.WriteTimeout))
+	timer := time.NewTimer(time.Millisecond * time.Duration(WriteTimeout))
 	for {
 		select {
 		case req := <-yc.reqQueue:
@@ -162,23 +153,22 @@ func (yc *YTHostClient) DoSend() {
 			if yc.IsClosed() {
 				return
 			}
-			lasttime = time.Now()
 			req.writeDone <- yc.Go("ms.HandleMsg", req.args, req.reply, make(chan *rpc.Call, 1))
 			lasttime = time.Now()
 		case <-timer.C:
-			if yc.IsClosed() || yc.IsDazed() || time.Since(lasttime).Milliseconds() > int64(GlobalClientOption.IdleTimeout) {
+			if yc.IsClosed() || yc.IsDazed() || time.Since(lasttime).Milliseconds() > int64(IdleTimeout) {
 				yc.Close()
 				return
 			}
 			yc.Go("ms.Ping", "ping", new(string), make(chan *rpc.Call, 1))
 		}
-		timer.Reset(time.Millisecond * time.Duration(GlobalClientOption.WriteTimeout))
+		timer.Reset(time.Millisecond * time.Duration(WriteTimeout))
 	}
 }
 
 func (yc *YTHostClient) IsDazed() bool {
 	rwt := atomic.LoadInt64(yc.activeTime)
-	if rwt > 0 && (time.Now().Unix()-rwt)*1000 > int64(GlobalClientOption.MuteTimeout) {
+	if rwt > 0 && (time.Now().Unix()-rwt)*1000 > int64(MuteTimeout) {
 		return true
 	}
 	return false
@@ -189,7 +179,7 @@ func (yc *YTHostClient) RemotePeerInfo() (*service.PeerInfo, error) {
 	yc.Lock()
 	defer yc.Unlock()
 	if yc.RPI == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(GlobalClientOption.ConnectTimeout)*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(ConnectTimeout)*time.Millisecond)
 		defer cancel()
 		infcall := yc.Go("as.RemotePeerInfo", "", info, make(chan *rpc.Call, 1))
 		select {
@@ -261,7 +251,7 @@ func (yc *YTHostClient) PushMsg(ctx context.Context, id int32, data []byte) (*YT
 		client:    yc,
 	}
 	if ctx == context.Background() {
-		ctxpush, cancel := context.WithTimeout(ctx, time.Duration(GlobalClientOption.QueueTimeout)*time.Millisecond)
+		ctxpush, cancel := context.WithTimeout(ctx, time.Duration(QueueTimeout)*time.Millisecond)
 		defer cancel()
 		ctx = ctxpush
 	}
