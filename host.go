@@ -187,9 +187,8 @@ func (hst *host) Connect(ctx context.Context, pid peer.ID, mas []multiaddr.Multi
 			}()
 			d := &mnet.Dialer{}
 			if conn, err := d.DialContext(ctx, addr); err == nil {
-				ytcon := &client.YTConn{Conn: conn, ActiveTime: new(int64)}
-				ytclt := client.WarpClient(rpc.NewClient(ytcon), &peer.AddrInfo{ID: hst.cfg.ID, Addrs: hst.Addrs()},
-					hst.cfg.Privkey.GetPublic(), hst.Config().Version, hst.Cs, ytcon.ActiveTime,
+				ytclt := client.WarpClient(conn, &peer.AddrInfo{ID: hst.cfg.ID, Addrs: hst.Addrs()},
+					hst.cfg.Privkey.GetPublic(), hst.Config().Version, hst.Cs,
 				)
 				if atomic.AddInt32(&isOK, 1) > 1 {
 					conn.Close()
@@ -241,14 +240,6 @@ func (hst *host) SendMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte
 	}
 	res, err := clt.SendMsg(ctx, mid, msg)
 	return res, err
-}
-
-func (hst *host) PushMsg(ctx context.Context, pid peer.ID, mid int32, msg []byte) (*client.YTCall, error) {
-	clt, ok := hst.ClientStore().GetClient(pid)
-	if !ok {
-		return nil, fmt.Errorf("no client ID is:%s", pid.Pretty())
-	}
-	return clt.PushMsg(ctx, mid, msg)
 }
 
 func (hst *host) SendMsgAuto(ctx context.Context, pid peer.ID, mid int32, ma multiaddr.Multiaddr, msg []byte) ([]byte, error) {
