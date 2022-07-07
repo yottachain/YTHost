@@ -20,7 +20,8 @@ import (
 	"github.com/yottachain/YTHost/stat"
 )
 
-var QueueSize int = 2
+var RequestQueueSize int = 2
+var ResponseQueueSize int = 30
 var ConnectTimeout int = 5000
 var WriteTimeout int = 15000
 var ReadTimeout int = 15000
@@ -136,8 +137,8 @@ func WarpClient(conn io.ReadWriteCloser, pi *peer.AddrInfo, pk crypto.PubKey, v 
 		localPeerID: pi.ID,
 		Version:     v,
 		Cs:          cs,
-		reqQueue:    make(chan *YTCall, QueueSize),
-		respQueue:   make(chan int32, QueueSize),
+		reqQueue:    make(chan *YTCall, RequestQueueSize),
+		respQueue:   make(chan int32, ResponseQueueSize),
 		activeTime:  new(int64),
 	}
 	encBuf := bufio.NewWriter(conn)
