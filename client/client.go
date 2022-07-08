@@ -124,11 +124,10 @@ type YTHostClient struct {
 
 	request rpc.Request
 
-	mutex    sync.Mutex
-	seq      uint64
-	pending  map[uint64]*rpc.Call
-	closing  bool
-	shutdown bool
+	mutex   sync.Mutex
+	seq     uint64
+	pending map[uint64]*rpc.Call
+	closing bool
 }
 
 func WarpClient(conn io.ReadWriteCloser, pi *peer.AddrInfo, pk crypto.PubKey, v int32, cs *stat.ConnStat) *YTHostClient {
@@ -255,7 +254,6 @@ func (yc *YTHostClient) input() {
 		}
 	}
 	yc.mutex.Lock()
-	yc.shutdown = true
 	closing := yc.closing
 	if err == io.EOF {
 		if closing {
@@ -278,68 +276,6 @@ func (yc *YTHostClient) IsDazed() bool {
 		return true
 	}
 	return false
-}
-
-func (yc *YTHostClient) RemotePeerInfo() (*service.PeerInfo, error) {
-	info := new(service.PeerInfo)
-	yc.mutex.Lock()
-	defer yc.mutex.Unlock()
-	if yc.RPI == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(ConnectTimeout)*time.Millisecond)
-		defer cancel()
-		infcall := yc.send(&YTCall{args: "", reply: info, writeDone: make(chan *rpc.Call, 1), client: yc}, "as.RemotePeerInfo")
-		select {
-		case <-infcall.Done:
-			if infcall.Error != nil {
-				return nil, infcall.Error
-			} else {
-				yc.RPI = info
-				return yc.RPI, nil
-			}
-		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx time out:getRemotePeerInfo")
-		}
-	} else {
-		return yc.RPI, nil
-	}
-}
-
-func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
-	var ai peer.AddrInfo
-	if info, err := yc.RemotePeerInfo(); err == nil {
-		ai.ID = info.ID
-		for _, addr := range info.Addrs {
-			ma, _ := multiaddr.NewMultiaddr(addr)
-			ai.Addrs = append(ai.Addrs, ma)
-		}
-	}
-	return ai
-}
-
-func (yc *YTHostClient) RemotePeerPubkey() crypto.PubKey {
-	if info, err := yc.RemotePeerInfo(); err == nil {
-		if pk, er := crypto.UnmarshalPublicKey(info.PubKey); er == nil {
-			return pk
-		}
-	}
-	return nil
-}
-
-func (yc *YTHostClient) RemotePeerVersion() int32 {
-	if info, err := yc.RemotePeerInfo(); err == nil {
-		return info.Version
-	}
-	return 0
-}
-
-func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
-	pi := peer.AddrInfo{}
-	pi.ID = yc.localPeerID
-	for _, v := range yc.localPeerAddrs {
-		ma, _ := multiaddr.NewMultiaddr(v)
-		pi.Addrs = append(pi.Addrs, ma)
-	}
-	return pi
 }
 
 func (yc *YTHostClient) pushMsg(ctx context.Context, id int32, data []byte) (*YTCall, error) {
@@ -417,10 +353,72 @@ func (yc *YTHostClient) Close() error {
 func (yc *YTHostClient) IsClosed() bool {
 	yc.mutex.Lock()
 	defer yc.mutex.Unlock()
-	return yc.shutdown || yc.closing
+	return yc.closing
 }
 
 func (yc *YTHostClient) SendMsgClose(ctx context.Context, id int32, data []byte) ([]byte, error) {
 	defer yc.Close()
 	return yc.SendMsg(ctx, id, data)
+}
+
+func (yc *YTHostClient) RemotePeerInfo() (*service.PeerInfo, error) {
+	info := new(service.PeerInfo)
+	yc.mutex.Lock()
+	defer yc.mutex.Unlock()
+	if yc.RPI == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(ConnectTimeout)*time.Millisecond)
+		defer cancel()
+		infcall := yc.send(&YTCall{args: "", reply: info, writeDone: make(chan *rpc.Call, 1), client: yc}, "as.RemotePeerInfo")
+		select {
+		case <-infcall.Done:
+			if infcall.Error != nil {
+				return nil, infcall.Error
+			} else {
+				yc.RPI = info
+				return yc.RPI, nil
+			}
+		case <-ctx.Done():
+			return nil, fmt.Errorf("ctx time out:getRemotePeerInfo")
+		}
+	} else {
+		return yc.RPI, nil
+	}
+}
+
+func (yc *YTHostClient) RemotePeer() peer.AddrInfo {
+	var ai peer.AddrInfo
+	if info, err := yc.RemotePeerInfo(); err == nil {
+		ai.ID = info.ID
+		for _, addr := range info.Addrs {
+			ma, _ := multiaddr.NewMultiaddr(addr)
+			ai.Addrs = append(ai.Addrs, ma)
+		}
+	}
+	return ai
+}
+
+func (yc *YTHostClient) RemotePeerPubkey() crypto.PubKey {
+	if info, err := yc.RemotePeerInfo(); err == nil {
+		if pk, er := crypto.UnmarshalPublicKey(info.PubKey); er == nil {
+			return pk
+		}
+	}
+	return nil
+}
+
+func (yc *YTHostClient) RemotePeerVersion() int32 {
+	if info, err := yc.RemotePeerInfo(); err == nil {
+		return info.Version
+	}
+	return 0
+}
+
+func (yc *YTHostClient) LocalPeer() peer.AddrInfo {
+	pi := peer.AddrInfo{}
+	pi.ID = yc.localPeerID
+	for _, v := range yc.localPeerAddrs {
+		ma, _ := multiaddr.NewMultiaddr(v)
+		pi.Addrs = append(pi.Addrs, ma)
+	}
+	return pi
 }
