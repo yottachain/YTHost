@@ -1,6 +1,7 @@
 package connAutoCloser
 
 import (
+	"fmt"
 	"net"
 	"time"
 )
@@ -17,6 +18,7 @@ func New(conn net.Conn) *ConnAutoCloser {
 	go func() {
 		<-t.C
 		if conn != nil {
+			fmt.Printf("remote addr %v no io for a long time, the connection is actively closed!\n", conn.RemoteAddr())
 			conn.Close()
 		}
 	}()
